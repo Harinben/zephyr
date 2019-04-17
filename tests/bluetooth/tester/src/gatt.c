@@ -243,7 +243,7 @@ static void add_service(u8_t *data, u16_t len)
 	}
 
 	svc_count++;
-	svc_attr_count = 0;
+	svc_attr_count = 0U;
 
 	switch (cmd->type) {
 	case GATT_SERVICE_PRIMARY:
@@ -432,7 +432,7 @@ static void add_characteristic(u8_t *data, u16_t len)
 	union uuid uuid;
 
 	/* Pre-set char_id */
-	cmd_data.char_id = 0;
+	cmd_data.char_id = 0U;
 	cmd_data.permissions = cmd->permissions;
 	cmd_data.properties = cmd->properties;
 	cmd_data.uuid = &uuid.uuid;
@@ -614,7 +614,7 @@ static void add_descriptor(u8_t *data, u16_t len)
 	}
 
 	/* Pre-set desc_id */
-	cmd_data.desc_id = 0;
+	cmd_data.desc_id = 0U;
 	cmd_data.permissions = cmd->permissions;
 	cmd_data.uuid = &uuid.uuid;
 
@@ -674,7 +674,7 @@ static void add_included(u8_t *data, u16_t len)
 	const struct gatt_add_included_service_cmd *cmd = (void *) data;
 	struct gatt_add_included_service_rp rp;
 	struct bt_gatt_attr *svc;
-	u16_t included_service_id = 0;
+	u16_t included_service_id = 0U;
 
 	if (!svc_count || !cmd->svc_id) {
 		goto fail;
@@ -728,7 +728,7 @@ struct bt_gatt_indicate_params indicate_params;
 static void indicate_cb(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			u8_t err)
 {
-	if (err != 0) {
+	if (err != 0U) {
 		LOG_ERR("Indication fail");
 	} else {
 		LOG_DBG("Indication success");
@@ -1502,7 +1502,7 @@ static void write(u8_t *data, u16_t len)
 
 	write_params.handle = sys_le16_to_cpu(cmd->handle);
 	write_params.func = write_rsp;
-	write_params.offset = 0;
+	write_params.offset = 0U;
 	write_params.data = cmd->data;
 	write_params.length = sys_le16_to_cpu(cmd->data_length);
 
@@ -1667,7 +1667,7 @@ static int disable_subscription(struct bt_conn *conn, u16_t ccc_handle)
 		return -EBUSY;
 	}
 
-	subscribe_params.ccc_handle = 0;
+	subscribe_params.ccc_handle = 0U;
 
 	return 0;
 }
@@ -1737,11 +1737,11 @@ static u8_t get_attrs_rp(const struct bt_gatt_attr *attr, void *user_data)
 	gatt_attr->permission = attr->perm;
 
 	if (attr->uuid->type == BT_UUID_TYPE_16) {
-		gatt_attr->type_length = 2;
+		gatt_attr->type_length = 2U;
 		net_buf_simple_add_le16(foreach->buf,
 					BT_UUID_16(attr->uuid)->val);
 	} else {
-		gatt_attr->type_length = 16;
+		gatt_attr->type_length = 16U;
 		net_buf_simple_add_mem(foreach->buf,
 				       BT_UUID_128(attr->uuid)->val,
 				       gatt_attr->type_length);
@@ -1782,7 +1782,7 @@ static void get_attrs(u8_t *data, u16_t len)
 	net_buf_simple_init(buf, sizeof(*rp));
 
 	foreach.buf = buf;
-	foreach.count = 0;
+	foreach.count = 0U;
 
 	bt_gatt_foreach_attr(start_handle, end_handle, get_attrs_rp, &foreach);
 
@@ -1819,6 +1819,11 @@ static u8_t get_attr_val_rp(const struct bt_gatt_attr *attr, void *user_data)
 
 	do {
 		to_read = net_buf_simple_tailroom(buf);
+
+		if (!attr->read) {
+			rp->att_response = BT_ATT_ERR_READ_NOT_PERMITTED;
+			break;
+		}
 
 		read = attr->read(NULL, attr, buf->data + buf->len, to_read,
 				  rp->value_length);

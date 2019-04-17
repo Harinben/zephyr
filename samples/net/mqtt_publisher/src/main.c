@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_mqtt_publisher_sample, LOG_LEVEL_DBG);
+
 #include <zephyr.h>
 #include <net/socket.h>
 #include <net/mqtt.h>
@@ -11,11 +14,6 @@
 #include <misc/printk.h>
 #include <string.h>
 #include <errno.h>
-
-#if defined(CONFIG_NET_L2_BT)
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/conn.h>
-#endif
 
 #include "config.h"
 
@@ -28,14 +26,14 @@ static struct mqtt_client client_ctx;
 
 /* MQTT Broker details. */
 static struct sockaddr_storage broker;
+#if defined(CONFIG_MQTT_LIB_SOCKS)
+static struct sockaddr_storage socks5_proxy;
+#endif
 
 static struct pollfd fds[1];
 static int nfds;
 
 static bool connected;
-
-/* This routine sets some basic properties for the network context variable */
-static int network_setup(void);
 
 #if defined(CONFIG_MQTT_LIB_TLS)
 
@@ -46,7 +44,7 @@ static int network_setup(void);
 #define APP_PSK_TAG 2
 
 static sec_tag_t m_sec_tags[] = {
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if defined(MBEDTLS_X509_CRT_PARSE_C) || defined(CONFIG_NET_SOCKETS_OFFLOAD)
 		APP_CA_CERT_TAG,
 #endif
 #if defined(MBEDTLS_KEY_EXCHANGE__SOME__PSK_ENABLED)
@@ -58,11 +56,11 @@ static int tls_init(void)
 {
 	int err = -EINVAL;
 
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if defined(MBEDTLS_X509_CRT_PARSE_C) || defined(CONFIG_NET_SOCKETS_OFFLOAD)
 	err = tls_credential_add(APP_CA_CERT_TAG, TLS_CREDENTIAL_CA_CERTIFICATE,
 				 ca_certificate, sizeof(ca_certificate));
 	if (err < 0) {
-		NET_ERR("Failed to register public certificate: %d", err);
+		LOG_ERR("Failed to register public certificate: %d", err);
 		return err;
 	}
 #endif
@@ -71,14 +69,14 @@ static int tls_init(void)
 	err = tls_credential_add(APP_PSK_TAG, TLS_CREDENTIAL_PSK,
 				 client_psk, sizeof(client_psk));
 	if (err < 0) {
-		NET_ERR("Failed to register PSK: %d", err);
+		LOG_ERR("Failed to register PSK: %d", err);
 		return err;
 	}
 
 	err = tls_credential_add(APP_PSK_TAG, TLS_CREDENTIAL_PSK_ID,
 				 client_psk_id, sizeof(client_psk_id) - 1);
 	if (err < 0) {
-		NET_ERR("Failed to register PSK ID: %d", err);
+		LOG_ERR("Failed to register PSK ID: %d", err);
 	}
 #endif
 
@@ -227,8 +225,8 @@ static int publish(struct mqtt_client *client, enum mqtt_qos qos)
 	param.message.payload.len =
 			strlen(param.message.payload.data);
 	param.message_id = sys_rand32_get();
-	param.dup_flag = 0;
-	param.retain_flag = 0;
+	param.dup_flag = 0U;
+	param.retain_flag = 0U;
 
 	return mqtt_publish(client, &param);
 }
@@ -247,12 +245,28 @@ static void broker_init(void)
 	broker6->sin6_family = AF_INET6;
 	broker6->sin6_port = htons(SERVER_PORT);
 	inet_pton(AF_INET6, SERVER_ADDR, &broker6->sin6_addr);
+
+#if defined(CONFIG_MQTT_LIB_SOCKS)
+	struct sockaddr_in6 *proxy6 = (struct sockaddr_in6 *)&socks5_proxy;
+
+	proxy6->sin6_family = AF_INET6;
+	proxy6->sin6_port = htons(SOCKS5_PROXY_PORT);
+	inet_pton(AF_INET6, SOCKS5_PROXY_ADDR, &proxy6->sin6_addr);
+#endif
 #else
 	struct sockaddr_in *broker4 = (struct sockaddr_in *)&broker;
 
 	broker4->sin_family = AF_INET;
 	broker4->sin_port = htons(SERVER_PORT);
 	inet_pton(AF_INET, SERVER_ADDR, &broker4->sin_addr);
+
+#if defined(CONFIG_MQTT_LIB_SOCKS)
+	struct sockaddr_in *proxy4 = (struct sockaddr_in *)&socks5_proxy;
+
+	proxy4->sin_family = AF_INET;
+	proxy4->sin_port = htons(SOCKS5_PROXY_PORT);
+	inet_pton(AF_INET, SOCKS5_PROXY_ADDR, &proxy4->sin_addr);
+#endif
 #endif
 }
 
@@ -285,16 +299,21 @@ static void client_init(struct mqtt_client *client)
 
 	tls_config->peer_verify = 2;
 	tls_config->cipher_list = NULL;
-	tls_config->seg_tag_list = m_sec_tags;
+	tls_config->sec_tag_list = m_sec_tags;
 	tls_config->sec_tag_count = ARRAY_SIZE(m_sec_tags);
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if defined(MBEDTLS_X509_CRT_PARSE_C) || defined(CONFIG_NET_SOCKETS_OFFLOAD)
 	tls_config->hostname = TLS_SNI_HOSTNAME;
 #else
 	tls_config->hostname = NULL;
 #endif
 
 #else
+#if defined(CONFIG_MQTT_LIB_SOCKS)
+	client->transport.type = MQTT_TRANSPORT_SOCKS;
+	client->transport.socks5.proxy = &socks5_proxy;
+#else
 	client->transport.type = MQTT_TRANSPORT_NON_SECURE;
+#endif
 #endif
 }
 
@@ -365,16 +384,7 @@ static void publisher(void)
 {
 	int i, rc;
 
-#if defined(CONFIG_MQTT_LIB_TLS)
-	rc = tls_init();
-	PRINT_RESULT("tls_init", rc);
-	SUCCESS_OR_EXIT(rc);
-#endif
-
-	rc = network_setup();
-	PRINT_RESULT("network_setup", rc);
-	SUCCESS_OR_EXIT(rc);
-
+	printk("attempting to connect: ");
 	rc = try_to_connect(&client_ctx);
 	PRINT_RESULT("try_to_connect", rc);
 	SUCCESS_OR_EXIT(rc);
@@ -420,57 +430,17 @@ static void publisher(void)
 	printk("\nBye!\n");
 }
 
-#if defined(CONFIG_NET_L2_BT)
-static bool bt_connected;
-
-static
-void bt_connect_cb(struct bt_conn *conn, u8_t err)
-{
-	bt_connected = true;
-}
-
-static
-void bt_disconnect_cb(struct bt_conn *conn, u8_t reason)
-{
-	bt_connected = false;
-	printk("bt disconnected (reason %u)\n", reason);
-}
-
-static
-struct bt_conn_cb bt_conn_cb = {
-	.connected = bt_connect_cb,
-	.disconnected = bt_disconnect_cb,
-};
-#endif
-
-static int network_setup(void)
-{
-#if defined(CONFIG_NET_L2_BT)
-	const char *progress_mark = "/-\\|";
-	int i = 0;
-	int rc;
-
-	rc = bt_enable(NULL);
-	if (rc) {
-		printk("bluetooth init failed\n");
-		return rc;
-	}
-
-	bt_conn_cb_register(&bt_conn_cb);
-
-	printk("\nwaiting for bt connection: ");
-	while (bt_connected == false) {
-		k_sleep(250);
-		printk("%c\b", progress_mark[i]);
-		i = (i + 1) % (sizeof(progress_mark) - 1);
-	}
-	printk("\n");
-#endif
-
-	return 0;
-}
-
 void main(void)
 {
-	publisher();
+#if defined(CONFIG_MQTT_LIB_TLS)
+	int rc;
+
+	rc = tls_init();
+	PRINT_RESULT("tls_init", rc);
+#endif
+
+	while (1) {
+		publisher();
+		k_sleep(5000);
+	}
 }

@@ -16,12 +16,9 @@
 
 #include <shell/shell.h>
 
-#if defined(CONFIG_SOC_COMPATIBLE_NRF)
-#include "../controller/hal/nrf5/ticker.h"
-#endif /* CONFIG_SOC_COMPATIBLE_NRF */
-
 #include "../controller/util/memq.h"
 #include "../controller/util/mayfly.h"
+#include "../controller/hal/ticker.h"
 #include "../controller/ticker/ticker.h"
 
 #if defined(CONFIG_BT_MAX_CONN)
@@ -51,10 +48,10 @@ int cmd_ticker_info(const struct shell *shell, size_t argc, char *argv[])
 	u8_t i;
 
 	ticker_id = TICKER_NULL;
-	ticks_to_expire = 0;
-	ticks_current = 0;
-	tickers_count = 0;
-	retry = 4;
+	ticks_to_expire = 0U;
+	ticks_current = 0U;
+	tickers_count = 0U;
+	retry = 4U;
 	do {
 		u32_t volatile err_cb = TICKER_STATUS_BUSY;
 		u32_t ticks_previous;
@@ -90,7 +87,7 @@ int cmd_ticker_info(const struct shell *shell, size_t argc, char *argv[])
 			}
 
 			if (tickers_count) {
-				tickers_count = 0;
+				tickers_count = 0U;
 
 				shell_print(shell, "Query reset, %u retries "
 					    "remaining.", retry);
@@ -115,7 +112,7 @@ int cmd_ticker_info(const struct shell *shell, size_t argc, char *argv[])
 	shell_print(shell, " id   offset   offset");
 	shell_print(shell, "      (tick)     (us)");
 	shell_print(shell, "---------------------");
-	for (i = 0; i < tickers_count; i++) {
+	for (i = 0U; i < tickers_count; i++) {
 		shell_print(shell, "%03u %08u %08u", tickers[i].id,
 		       tickers[i].ticks_to_expire,
 		       HAL_TICKER_TICKS_TO_US(tickers[i].ticks_to_expire));
@@ -127,16 +124,16 @@ int cmd_ticker_info(const struct shell *shell, size_t argc, char *argv[])
 
 #define HELP_NONE "[none]"
 
-SHELL_CREATE_STATIC_SUBCMD_SET(ticker_cmds) {
+SHELL_STATIC_SUBCMD_SET_CREATE(ticker_cmds,
 	SHELL_CMD_ARG(info, NULL, HELP_NONE, cmd_ticker_info, 1, 0),
 	SHELL_SUBCMD_SET_END
-};
+);
 
 static int cmd_ticker(const struct shell *shell, size_t argc, char **argv)
 {
 	if (argc == 1) {
-		shell_help_print(shell, NULL, 0);
-		/* shell_cmd_precheck returns 1 when help is printed */
+		shell_help(shell);
+		/* shell returns 1 when help is printed */
 		return 1;
 	}
 

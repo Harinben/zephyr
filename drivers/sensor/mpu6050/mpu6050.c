@@ -33,7 +33,7 @@ static void mpu6050_convert_gyro(struct sensor_value *val, s16_t raw_val,
 	s64_t conv_val;
 
 	conv_val = ((s64_t)raw_val * SENSOR_PI * 10) /
-		   (180 * sensitivity_x10);
+		   (sensitivity_x10 * 180U);
 	val->val1 = conv_val / 1000000;
 	val->val2 = conv_val % 1000000;
 }
@@ -171,13 +171,13 @@ int mpu6050_init(struct device *dev)
 	}
 
 	/* set accelerometer full-scale range */
-	for (i = 0; i < 4; i++) {
+	for (i = 0U; i < 4; i++) {
 		if (BIT(i+1) == CONFIG_MPU6050_ACCEL_FS) {
 			break;
 		}
 	}
 
-	if (i == 4) {
+	if (i == 4U) {
 		LOG_ERR("Invalid value for accel full-scale range.");
 		return -EINVAL;
 	}
@@ -192,13 +192,13 @@ int mpu6050_init(struct device *dev)
 	drv_data->accel_sensitivity_shift = 14 - i;
 
 	/* set gyroscope full-scale range */
-	for (i = 0; i < 4; i++) {
+	for (i = 0U; i < 4; i++) {
 		if (BIT(i) * 250 == CONFIG_MPU6050_GYRO_FS) {
 			break;
 		}
 	}
 
-	if (i == 4) {
+	if (i == 4U) {
 		LOG_ERR("Invalid value for gyro full-scale range.");
 		return -EINVAL;
 	}

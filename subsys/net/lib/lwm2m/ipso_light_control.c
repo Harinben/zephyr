@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017 Linaro Limited
+ * Copyright (c) 2019 Foundries.io
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -18,7 +19,6 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #include <stdint.h>
 #include <init.h>
-#include <net/lwm2m.h>
 
 #include "lwm2m_object.h"
 #include "lwm2m_engine.h"
@@ -90,7 +90,7 @@ static int on_time_post_write_cb(u16_t obj_inst_id,
 {
 	int i;
 
-	if (data_len != 4) {
+	if (data_len != 4U) {
 		LOG_ERR("unknown size %u", data_len);
 		return -EINVAL;
 	}
@@ -139,9 +139,9 @@ static struct lwm2m_engine_obj_inst *light_control_create(u16_t obj_inst_id)
 
 	/* Set default values */
 	on_off_value[avail] = false;
-	dimmer_value[avail] = 0;
+	dimmer_value[avail] = 0U;
 	on_time_value[avail] = 0;
-	on_time_offset[avail] = 0;
+	on_time_offset[avail] = 0U;
 	cumulative_active_value[avail].val1 = 0;
 	cumulative_active_value[avail].val2 = 0;
 	power_factor_value[avail].val1 = 0;
@@ -177,8 +177,6 @@ static struct lwm2m_engine_obj_inst *light_control_create(u16_t obj_inst_id)
 
 static int ipso_light_control_init(struct device *dev)
 {
-	int ret = 0;
-
 	/* Set default values */
 	(void)memset(inst, 0, sizeof(*inst) * MAX_INSTANCE_COUNT);
 	(void)memset(res, 0, sizeof(struct lwm2m_engine_res_inst) *
@@ -191,7 +189,7 @@ static int ipso_light_control_init(struct device *dev)
 	light_control.create_cb = light_control_create;
 	lwm2m_register_obj(&light_control);
 
-	return ret;
+	return 0;
 }
 
 SYS_INIT(ipso_light_control_init, APPLICATION,

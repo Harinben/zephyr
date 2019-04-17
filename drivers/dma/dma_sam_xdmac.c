@@ -191,13 +191,13 @@ static int sam_xdmac_config(struct device *dev, u32_t channel,
 	__ASSERT_NO_MSG(cfg->source_data_size == cfg->dest_data_size);
 	__ASSERT_NO_MSG(cfg->source_burst_length == cfg->dest_burst_length);
 
-	if (cfg->source_data_size != 1 && cfg->source_data_size != 2 &&
-	    cfg->source_data_size != 4) {
+	if (cfg->source_data_size != 1U && cfg->source_data_size != 2U &&
+	    cfg->source_data_size != 4U) {
 		LOG_ERR("Invalid 'source_data_size' value");
 		return -EINVAL;
 	}
 
-	if (cfg->block_count != 1) {
+	if (cfg->block_count != 1U) {
 		LOG_ERR("Only single block transfer is currently supported."
 			    " Please submit a patch.");
 		return -EINVAL;
@@ -212,7 +212,7 @@ static int sam_xdmac_config(struct device *dev, u32_t channel,
 	case MEMORY_TO_MEMORY:
 		channel_cfg.cfg =
 			  XDMAC_CC_TYPE_MEM_TRAN
-			| XDMAC_CC_MBSIZE(burst_size == 0 ? 0 : burst_size - 1)
+			| XDMAC_CC_MBSIZE(burst_size == 0U ? 0 : burst_size - 1)
 			| XDMAC_CC_SAM_INCREMENTED_AM
 			| XDMAC_CC_DAM_INCREMENTED_AM;
 		break;
@@ -243,9 +243,9 @@ static int sam_xdmac_config(struct device *dev, u32_t channel,
 		| XDMAC_CC_SIF_AHB_IF1
 		| XDMAC_CC_DIF_AHB_IF1
 		| XDMAC_CC_PERID(cfg->dma_slot);
-	channel_cfg.ds_msp = 0;
-	channel_cfg.sus = 0;
-	channel_cfg.dus = 0;
+	channel_cfg.ds_msp = 0U;
+	channel_cfg.sus = 0U;
+	channel_cfg.dus = 0U;
 	channel_cfg.cie =
 		  (cfg->complete_callback_en ? XDMAC_CIE_BIE : XDMAC_CIE_LIE)
 		| (cfg->error_callback_en ? XDMAC_INT_ERR : 0);

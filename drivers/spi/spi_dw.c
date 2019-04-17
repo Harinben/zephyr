@@ -87,7 +87,7 @@ static void push_data(struct device *dev)
 {
 	const struct spi_dw_config *info = dev->config->config_info;
 	struct spi_dw_data *spi = dev->driver_data;
-	u32_t data = 0;
+	u32_t data = 0U;
 	u32_t f_tx;
 
 	DBG_COUNTER_INIT();
@@ -96,7 +96,7 @@ static void push_data(struct device *dev)
 		f_tx = DW_SPI_FIFO_DEPTH - read_txflr(info->regs) -
 			read_rxflr(info->regs);
 		if ((int)f_tx < 0) {
-			f_tx = 0; /* if rx-fifo is full, hold off tx */
+			f_tx = 0U; /* if rx-fifo is full, hold off tx */
 		}
 	} else {
 		f_tx = DW_SPI_FIFO_DEPTH - read_txflr(info->regs);
@@ -126,9 +126,9 @@ static void push_data(struct device *dev)
 				break;
 			}
 
-			data = 0;
+			data = 0U;
 		} else if (spi_context_tx_on(&spi->ctx)) {
-			data = 0;
+			data = 0U;
 		} else {
 			/* Nothing to push anymore */
 			break;
@@ -197,7 +197,7 @@ static int spi_dw_configure(const struct spi_dw_config *info,
 			    struct spi_dw_data *spi,
 			    const struct spi_config *config)
 {
-	u32_t ctrlr0 = 0;
+	u32_t ctrlr0 = 0U;
 
 	LOG_DBG("%p (prev %p)", config, spi->ctx.config);
 
@@ -290,7 +290,7 @@ static int spi_dw_configure(const struct spi_dw_config *info,
 static uint32_t spi_dw_compute_ndf(const struct spi_buf *rx_bufs,
 				   size_t rx_count, u8_t dfs)
 {
-	u32_t len = 0;
+	u32_t len = 0U;
 
 	for (; rx_count; rx_bufs++, rx_count--) {
 		if (len > (UINT16_MAX - rx_bufs->len)) {
@@ -314,7 +314,7 @@ static void spi_dw_update_txftlr(const struct spi_dw_config *info,
 
 	if (spi_dw_is_slave(spi)) {
 		if (!spi->ctx.tx_len) {
-			reg_data = 0;
+			reg_data = 0U;
 		} else if (spi->ctx.tx_len < DW_SPI_TXFTLR_DFLT) {
 			reg_data = spi->ctx.tx_len - 1;
 		}
@@ -388,7 +388,7 @@ static int transceive(struct device *dev,
 	/* Set buffers info */
 	spi_context_buffers_setup(&spi->ctx, tx_bufs, rx_bufs, spi->dfs);
 
-	spi->fifo_diff = 0;
+	spi->fifo_diff = 0U;
 
 	/* Tx Threshold */
 	spi_dw_update_txftlr(info, spi);
@@ -508,8 +508,8 @@ int spi_dw_init(struct device *dev)
 	const struct spi_dw_config *info = dev->config->config_info;
 	struct spi_dw_data *spi = dev->driver_data;
 
-	_clock_config(dev);
-	_clock_on(dev);
+	clock_config(dev);
+	clock_on(dev);
 
 	info->config_func();
 
@@ -554,7 +554,7 @@ void spi_config_0_irq(void)
 	IRQ_CONNECT(DT_SPI_0_IRQ, DT_SPI_0_IRQ_PRI,
 		    spi_dw_isr, DEVICE_GET(spi_dw_port_0), DT_SPI_DW_IRQ_FLAGS);
 	irq_enable(DT_SPI_0_IRQ);
-	_spi_int_unmask(SPI_DW_PORT_0_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_0_INT_MASK);
 #else
 	IRQ_CONNECT(DT_SPI_0_IRQ_RX_AVAIL, DT_SPI_0_IRQ_RX_AVAIL_PRI,
 		    spi_dw_isr, DEVICE_GET(spi_dw_port_0), DT_SPI_DW_IRQ_FLAGS);
@@ -567,9 +567,9 @@ void spi_config_0_irq(void)
 	irq_enable(DT_SPI_0_IRQ_TX_REQ);
 	irq_enable(DT_SPI_0_IRQ_ERR_INT);
 
-	_spi_int_unmask(SPI_DW_PORT_0_RX_INT_MASK);
-	_spi_int_unmask(SPI_DW_PORT_0_TX_INT_MASK);
-	_spi_int_unmask(SPI_DW_PORT_0_ERROR_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_0_RX_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_0_TX_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_0_ERROR_INT_MASK);
 #endif
 }
 #endif /* CONFIG_SPI_0 */
@@ -602,7 +602,7 @@ void spi_config_1_irq(void)
 	IRQ_CONNECT(DT_SPI_1_IRQ, DT_SPI_1_IRQ_PRI,
 		    spi_dw_isr, DEVICE_GET(spi_dw_port_1), DT_SPI_DW_IRQ_FLAGS);
 	irq_enable(DT_SPI_1_IRQ);
-	_spi_int_unmask(SPI_DW_PORT_1_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_1_INT_MASK);
 #else
 	IRQ_CONNECT(DT_SPI_1_IRQ_RX_AVAIL, DT_SPI_1_IRQ_RX_AVAIL_PRI,
 		    spi_dw_isr, DEVICE_GET(spi_dw_port_1), DT_SPI_DW_IRQ_FLAGS);
@@ -615,9 +615,9 @@ void spi_config_1_irq(void)
 	irq_enable(DT_SPI_1_IRQ_TX_REQ);
 	irq_enable(DT_SPI_1_IRQ_ERR_INT);
 
-	_spi_int_unmask(SPI_DW_PORT_1_RX_INT_MASK);
-	_spi_int_unmask(SPI_DW_PORT_1_TX_INT_MASK);
-	_spi_int_unmask(SPI_DW_PORT_1_ERROR_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_1_RX_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_1_TX_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_1_ERROR_INT_MASK);
 #endif
 }
 #endif /* CONFIG_SPI_1 */
@@ -650,22 +650,22 @@ void spi_config_2_irq(void)
 	IRQ_CONNECT(DT_SPI_2_IRQ, DT_SPI_2_IRQ_PRI,
 		    spi_dw_isr, DEVICE_GET(spi_dw_port_2), DT_SPI_DW_IRQ_FLAGS);
 	irq_enable(DT_SPI_2_IRQ);
-	_spi_int_unmask(SPI_DW_PORT_2_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_2_INT_MASK);
 #else
-	IRQ_CONNECT(CONFIG_SPI_2_IRQ_RX_AVAIL, CONFIG_SPI_2_IRQ_RX_AVAIL_PRI,
+	IRQ_CONNECT(DT_SPI_2_IRQ_RX_AVAIL, DT_SPI_2_IRQ_RX_AVAIL_PRI,
 		    spi_dw_isr, DEVICE_GET(spi_dw_port_2), DT_SPI_DW_IRQ_FLAGS);
-	IRQ_CONNECT(CONFIG_SPI_2_IRQ_TX_REQ, CONFIG_SPI_2_IRQ_TX_REQ_PRI,
+	IRQ_CONNECT(DT_SPI_2_IRQ_TX_REQ, DT_SPI_2_IRQ_TX_REQ_PRI,
 		    spi_dw_isr, DEVICE_GET(spi_dw_port_2), DT_SPI_DW_IRQ_FLAGS);
-	IRQ_CONNECT(CONFIG_SPI_2_IRQ_ERR_INT, CONFIG_SPI_2_IRQ_ERR_INT_PRI,
+	IRQ_CONNECT(DT_SPI_2_IRQ_ERR_INT, DT_SPI_2_IRQ_ERR_INT_PRI,
 		    spi_dw_isr, DEVICE_GET(spi_dw_port_2), DT_SPI_DW_IRQ_FLAGS);
 
-	irq_enable(CONFIG_SPI_2_IRQ_RX_AVAIL);
-	irq_enable(CONFIG_SPI_2_IRQ_TX_REQ);
-	irq_enable(CONFIG_SPI_2_IRQ_ERR_INT);
+	irq_enable(DT_SPI_2_IRQ_RX_AVAIL);
+	irq_enable(DT_SPI_2_IRQ_TX_REQ);
+	irq_enable(DT_SPI_2_IRQ_ERR_INT);
 
-	_spi_int_unmask(SPI_DW_PORT_2_RX_INT_MASK);
-	_spi_int_unmask(SPI_DW_PORT_2_TX_INT_MASK);
-	_spi_int_unmask(SPI_DW_PORT_2_ERROR_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_2_RX_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_2_TX_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_2_ERROR_INT_MASK);
 #endif
 }
 #endif /* CONFIG_SPI_2 */
@@ -698,22 +698,22 @@ void spi_config_3_irq(void)
 	IRQ_CONNECT(DT_SPI_3_IRQ, DT_SPI_3_IRQ_PRI,
 		    spi_dw_isr, DEVICE_GET(spi_dw_port_3), DT_SPI_DW_IRQ_FLAGS);
 	irq_enable(DT_SPI_3_IRQ);
-	_spi_int_unmask(SPI_DW_PORT_3_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_3_INT_MASK);
 #else
-	IRQ_CONNECT(CONFIG_SPI_3_IRQ_RX_AVAIL, CONFIG_SPI_3_IRQ_RX_AVAIL_PRI,
+	IRQ_CONNECT(DT_SPI_3_IRQ_RX_AVAIL, DT_SPI_3_IRQ_RX_AVAIL_PRI,
 		    spi_dw_isr, DEVICE_GET(spi_dw_port_3), DT_SPI_DW_IRQ_FLAGS);
-	IRQ_CONNECT(CONFIG_SPI_3_IRQ_TX_REQ, CONFIG_SPI_3_IRQ_TX_REQ_PRI,
+	IRQ_CONNECT(DT_SPI_3_IRQ_TX_REQ, DT_SPI_3_IRQ_TX_REQ_PRI,
 		    spi_dw_isr, DEVICE_GET(spi_dw_port_3), DT_SPI_DW_IRQ_FLAGS);
-	IRQ_CONNECT(CONFIG_SPI_3_IRQ_ERR_INT, CONFIG_SPI_3_IRQ_ERR_INT_PRI,
+	IRQ_CONNECT(DT_SPI_3_IRQ_ERR_INT, DT_SPI_3_IRQ_ERR_INT_PRI,
 		    spi_dw_isr, DEVICE_GET(spi_dw_port_3), DT_SPI_DW_IRQ_FLAGS);
 
-	irq_enable(CONFIG_SPI_3_IRQ_RX_AVAIL);
-	irq_enable(CONFIG_SPI_3_IRQ_TX_REQ);
-	irq_enable(CONFIG_SPI_3_IRQ_ERR_INT);
+	irq_enable(DT_SPI_3_IRQ_RX_AVAIL);
+	irq_enable(DT_SPI_3_IRQ_TX_REQ);
+	irq_enable(DT_SPI_3_IRQ_ERR_INT);
 
-	_spi_int_unmask(SPI_DW_PORT_3_RX_INT_MASK);
-	_spi_int_unmask(SPI_DW_PORT_3_TX_INT_MASK);
-	_spi_int_unmask(SPI_DW_PORT_3_ERROR_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_3_RX_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_3_TX_INT_MASK);
+	z_spi_int_unmask(SPI_DW_PORT_3_ERROR_INT_MASK);
 #endif
 }
 #endif /* CONFIG_SPI_3 */

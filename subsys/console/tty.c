@@ -7,11 +7,10 @@
 #include <zephyr.h>
 #include <uart.h>
 #include <misc/printk.h>
-#include <console.h>
-#include <drivers/console/console.h>
-#include <drivers/console/uart_console.h>
+#include <tty.h>
 
 static int tty_irq_input_hook(struct tty_serial *tty, u8_t c);
+static int tty_putchar(struct tty_serial *tty, u8_t c);
 
 static void tty_uart_isr(void *user_data)
 {
@@ -40,7 +39,7 @@ static void tty_uart_isr(void *user_data)
 		} else {
 			uart_fifo_fill(dev, &tty->tx_ringbuf[tty->tx_get++], 1);
 			if (tty->tx_get >= tty->tx_ringbuf_sz) {
-				tty->tx_get = 0;
+				tty->tx_get = 0U;
 			}
 			k_sem_give(&tty->tx_sem);
 		}
@@ -57,8 +56,7 @@ static int tty_irq_input_hook(struct tty_serial *tty, u8_t c)
 
 	if (rx_next == tty->rx_get) {
 		/* Try to give a clue to user that some input was lost */
-		console_putchar('~');
-		console_putchar('\n');
+		tty_putchar(tty, '~');
 		return 1;
 	}
 
@@ -104,6 +102,17 @@ ssize_t tty_write(struct tty_serial *tty, const void *buf, size_t size)
 	size_t out_size = 0;
 	int res = 0;
 
+	if (tty->tx_ringbuf_sz == 0U) {
+		/* Unbuffered operation, implicitly blocking. */
+		out_size = size;
+
+		while (size--) {
+			uart_poll_out(tty->uart_dev, *p++);
+		}
+
+		return out_size;
+	}
+
 	while (size--) {
 		res = tty_putchar(tty, *p++);
 		if (res < 0) {
@@ -142,11 +151,54 @@ static int tty_getchar(struct tty_serial *tty)
 	key = irq_lock();
 	c = tty->rx_ringbuf[tty->rx_get++];
 	if (tty->rx_get >= tty->rx_ringbuf_sz) {
-		tty->rx_get = 0;
+		tty->rx_get = 0U;
 	}
 	irq_unlock(key);
 
 	return c;
+}
+
+static ssize_t tty_read_unbuf(struct tty_serial *tty, void *buf, size_t size)
+{
+	u8_t *p = buf;
+	size_t out_size = 0;
+	int res = 0;
+	u32_t timeout = tty->rx_timeout;
+
+	while (size) {
+		u8_t c;
+		res = uart_poll_in(tty->uart_dev, &c);
+		if (res <= -2) {
+			/* Error occured, best we can do is to return
+			 * accumulated data w/o error, or return error
+			 * directly if none.
+			 */
+			if (out_size == 0) {
+				errno = res;
+				return -1;
+			}
+			break;
+		}
+
+		if (res == 0) {
+			*p++ = c;
+			out_size++;
+			size--;
+		}
+
+		if (size == 0 || (timeout != K_FOREVER && timeout-- == 0U)) {
+			break;
+		}
+
+		/* Avoid 100% busy-polling, and yet try to process bursts
+		 * of data without extra delays.
+		 */
+		if (res == -1) {
+			k_sleep(1);
+		}
+	}
+
+	return out_size;
 }
 
 ssize_t tty_read(struct tty_serial *tty, void *buf, size_t size)
@@ -154,6 +206,10 @@ ssize_t tty_read(struct tty_serial *tty, void *buf, size_t size)
 	u8_t *p = buf;
 	size_t out_size = 0;
 	int res = 0;
+
+	if (tty->rx_ringbuf_sz == 0U) {
+		return tty_read_unbuf(tty, buf, size);
+	}
 
 	while (size--) {
 		res = tty_getchar(tty);
@@ -180,22 +236,53 @@ ssize_t tty_read(struct tty_serial *tty, void *buf, size_t size)
 	return out_size;
 }
 
-void tty_init(struct tty_serial *tty, struct device *uart_dev,
-	      u8_t *rxbuf, u16_t rxbuf_sz,
-	      u8_t *txbuf, u16_t txbuf_sz)
+int tty_init(struct tty_serial *tty, struct device *uart_dev)
 {
 	tty->uart_dev = uart_dev;
-	tty->rx_ringbuf = rxbuf;
-	tty->rx_ringbuf_sz = rxbuf_sz;
-	tty->tx_ringbuf = txbuf;
-	tty->tx_ringbuf_sz = txbuf_sz;
-	tty->rx_get = tty->rx_put = tty->tx_get = tty->tx_put = 0;
-	k_sem_init(&tty->rx_sem, 0, UINT_MAX);
-	k_sem_init(&tty->tx_sem, txbuf_sz - 1, UINT_MAX);
+
+	/* We start in unbuffer mode. */
+	tty->rx_ringbuf = NULL;
+	tty->rx_ringbuf_sz = 0U;
+	tty->tx_ringbuf = NULL;
+	tty->tx_ringbuf_sz = 0U;
+
+	tty->rx_get = tty->rx_put = tty->tx_get = tty->tx_put = 0U;
 
 	tty->rx_timeout = K_FOREVER;
 	tty->tx_timeout = K_FOREVER;
 
 	uart_irq_callback_user_data_set(uart_dev, tty_uart_isr, tty);
-	uart_irq_rx_enable(uart_dev);
+
+	return 0;
+}
+
+int tty_set_rx_buf(struct tty_serial *tty, void *buf, size_t size)
+{
+	uart_irq_rx_disable(tty->uart_dev);
+
+	tty->rx_ringbuf = buf;
+	tty->rx_ringbuf_sz = size;
+
+	if (size > 0) {
+		k_sem_init(&tty->rx_sem, 0, UINT_MAX);
+		uart_irq_rx_enable(tty->uart_dev);
+	}
+
+	return 0;
+}
+
+int tty_set_tx_buf(struct tty_serial *tty, void *buf, size_t size)
+{
+	uart_irq_tx_disable(tty->uart_dev);
+
+	tty->tx_ringbuf = buf;
+	tty->tx_ringbuf_sz = size;
+
+	k_sem_init(&tty->tx_sem, size - 1, UINT_MAX);
+
+	/* New buffer is initially empty, no need to re-enable interrupts,
+	 * it will be done when needed (on first output char).
+	 */
+
+	return 0;
 }

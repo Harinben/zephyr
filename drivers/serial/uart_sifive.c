@@ -77,10 +77,8 @@ struct uart_sifive_data {
  *
  * @param dev UART device struct
  * @param c Character to send
- *
- * @return Sent character
  */
-static unsigned char uart_sifive_poll_out(struct device *dev,
+static void uart_sifive_poll_out(struct device *dev,
 					 unsigned char c)
 {
 	volatile struct uart_sifive_regs_t *uart = DEV_UART(dev);
@@ -90,8 +88,6 @@ static unsigned char uart_sifive_poll_out(struct device *dev,
 		;
 
 	uart->tx = (int)c;
-
-	return c;
 }
 
 /**
@@ -344,7 +340,7 @@ static int uart_sifive_init(struct device *dev)
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	/* Ensure that uart IRQ is disabled initially */
-	uart->ie = 0;
+	uart->ie = 0U;
 
 	/* Setup IRQ handler */
 	cfg->cfg_func();
@@ -433,7 +429,7 @@ static const struct uart_sifive_device_config uart_sifive_dev_cfg_1 = {
 #endif
 };
 
-DEVICE_AND_API_INIT(uart_sifive_1, CONFIG_SIFIVE_UART_1_LABEL,
+DEVICE_AND_API_INIT(uart_sifive_1, DT_SIFIVE_UART_1_LABEL,
 		    uart_sifive_init,
 		    &uart_sifive_data_1, &uart_sifive_dev_cfg_1,
 		    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,

@@ -195,7 +195,7 @@ int i2c_stm32_slave_register(struct device *dev,
 		return -EBUSY;
 	}
 
-	bitrate_cfg = _i2c_map_dt_bitrate(cfg->bitrate);
+	bitrate_cfg = i2c_map_dt_bitrate(cfg->bitrate);
 
 	ret = i2c_stm32_runtime_configure(dev, bitrate_cfg);
 	if (ret < 0) {
@@ -283,7 +283,7 @@ static void stm32_i2c_event(struct device *dev)
 	/* NACK received */
 	if (LL_I2C_IsActiveFlag_NACK(i2c)) {
 		LL_I2C_ClearFlag_NACK(i2c);
-		data->current.is_nack = 1;
+		data->current.is_nack = 1U;
 		goto end;
 	}
 
@@ -326,13 +326,13 @@ static int stm32_i2c_error(struct device *dev)
 
 	if (LL_I2C_IsActiveFlag_ARLO(i2c)) {
 		LL_I2C_ClearFlag_ARLO(i2c);
-		data->current.is_arlo = 1;
+		data->current.is_arlo = 1U;
 		goto end;
 	}
 
 	if (LL_I2C_IsActiveFlag_BERR(i2c)) {
 		LL_I2C_ClearFlag_BERR(i2c);
-		data->current.is_err = 1;
+		data->current.is_err = 1U;
 		goto end;
 	}
 
@@ -378,9 +378,9 @@ int stm32_i2c_msg_write(struct device *dev, struct i2c_msg *msg,
 
 	data->current.len = msg->len;
 	data->current.buf = msg->buf;
-	data->current.is_write = 1;
-	data->current.is_nack = 0;
-	data->current.is_err = 0;
+	data->current.is_write = 1U;
+	data->current.is_nack = 0U;
+	data->current.is_err = 0U;
 	data->current.msg = msg;
 
 	msg_init(dev, msg, next_msg_flags, slave, LL_I2C_REQUEST_WRITE);
@@ -400,18 +400,18 @@ error:
 	if (data->current.is_arlo) {
 		LOG_DBG("%s: ARLO %d", __func__,
 				    data->current.is_arlo);
-		data->current.is_arlo = 0;
+		data->current.is_arlo = 0U;
 	}
 
 	if (data->current.is_nack) {
 		LOG_DBG("%s: NACK", __func__);
-		data->current.is_nack = 0;
+		data->current.is_nack = 0U;
 	}
 
 	if (data->current.is_err) {
 		LOG_DBG("%s: ERR %d", __func__,
 				    data->current.is_err);
-		data->current.is_err = 0;
+		data->current.is_err = 0U;
 	}
 
 	return -EIO;
@@ -426,10 +426,10 @@ int stm32_i2c_msg_read(struct device *dev, struct i2c_msg *msg,
 
 	data->current.len = msg->len;
 	data->current.buf = msg->buf;
-	data->current.is_write = 0;
-	data->current.is_arlo = 0;
-	data->current.is_err = 0;
-	data->current.is_nack = 0;
+	data->current.is_write = 0U;
+	data->current.is_arlo = 0U;
+	data->current.is_err = 0U;
+	data->current.is_nack = 0U;
 	data->current.msg = msg;
 
 	msg_init(dev, msg, next_msg_flags, slave, LL_I2C_REQUEST_READ);
@@ -449,32 +449,71 @@ error:
 	if (data->current.is_arlo) {
 		LOG_DBG("%s: ARLO %d", __func__,
 				    data->current.is_arlo);
-		data->current.is_arlo = 0;
+		data->current.is_arlo = 0U;
 	}
 
 	if (data->current.is_nack) {
 		LOG_DBG("%s: NACK", __func__);
-		data->current.is_nack = 0;
+		data->current.is_nack = 0U;
 	}
 
 	if (data->current.is_err) {
 		LOG_DBG("%s: ERR %d", __func__,
 				    data->current.is_err);
-		data->current.is_err = 0;
+		data->current.is_err = 0U;
 	}
 
 	return -EIO;
 }
 
 #else /* !CONFIG_I2C_STM32_INTERRUPT */
-static inline void msg_done(struct device *dev, unsigned int current_msg_flags)
+static inline int check_errors(struct device *dev, const char *funcname)
+{
+	const struct i2c_stm32_config *cfg = DEV_CFG(dev);
+	I2C_TypeDef *i2c = cfg->i2c;
+
+	if (LL_I2C_IsActiveFlag_NACK(i2c)) {
+		LL_I2C_ClearFlag_NACK(i2c);
+		LOG_DBG("%s: NACK", funcname);
+		goto error;
+	}
+
+	if (LL_I2C_IsActiveFlag_ARLO(i2c)) {
+		LL_I2C_ClearFlag_ARLO(i2c);
+		LOG_DBG("%s: ARLO", funcname);
+		goto error;
+	}
+
+	if (LL_I2C_IsActiveFlag_OVR(i2c)) {
+		LL_I2C_ClearFlag_OVR(i2c);
+		LOG_DBG("%s: OVR", funcname);
+		goto error;
+	}
+
+	if (LL_I2C_IsActiveFlag_BERR(i2c)) {
+		LL_I2C_ClearFlag_BERR(i2c);
+		LOG_DBG("%s: BERR", funcname);
+		goto error;
+	}
+
+	return 0;
+error:
+	if (LL_I2C_IsEnabledReloadMode(i2c)) {
+		LL_I2C_DisableReloadMode(i2c);
+	}
+	return -EIO;
+}
+
+static inline int msg_done(struct device *dev, unsigned int current_msg_flags)
 {
 	const struct i2c_stm32_config *cfg = DEV_CFG(dev);
 	I2C_TypeDef *i2c = cfg->i2c;
 
 	/* Wait for transfer to complete */
 	while (!LL_I2C_IsActiveFlag_TC(i2c) && !LL_I2C_IsActiveFlag_TCR(i2c)) {
-		;
+		if (check_errors(dev, __func__)) {
+			return -EIO;
+		}
 	}
 	/* Issue stop condition if necessary */
 	if (current_msg_flags & I2C_MSG_STOP) {
@@ -485,6 +524,8 @@ static inline void msg_done(struct device *dev, unsigned int current_msg_flags)
 		LL_I2C_ClearFlag_STOP(i2c);
 		LL_I2C_DisableReloadMode(i2c);
 	}
+
+	return 0;
 }
 
 int stm32_i2c_msg_write(struct device *dev, struct i2c_msg *msg,
@@ -492,7 +533,7 @@ int stm32_i2c_msg_write(struct device *dev, struct i2c_msg *msg,
 {
 	const struct i2c_stm32_config *cfg = DEV_CFG(dev);
 	I2C_TypeDef *i2c = cfg->i2c;
-	unsigned int len = 0;
+	unsigned int len = 0U;
 	u8_t *buf = msg->buf;
 
 	msg_init(dev, msg, next_msg_flags, slave, LL_I2C_REQUEST_WRITE);
@@ -504,8 +545,8 @@ int stm32_i2c_msg_write(struct device *dev, struct i2c_msg *msg,
 				break;
 			}
 
-			if (LL_I2C_IsActiveFlag_NACK(i2c)) {
-				goto error;
+			if (check_errors(dev, __func__)) {
+				return -EIO;
 			}
 		}
 
@@ -514,14 +555,7 @@ int stm32_i2c_msg_write(struct device *dev, struct i2c_msg *msg,
 		len--;
 	}
 
-	msg_done(dev, msg->flags);
-
-	return 0;
-error:
-	LL_I2C_ClearFlag_NACK(i2c);
-	LOG_DBG("%s: NACK", __func__);
-
-	return -EIO;
+	return msg_done(dev, msg->flags);
 }
 
 int stm32_i2c_msg_read(struct device *dev, struct i2c_msg *msg,
@@ -529,7 +563,7 @@ int stm32_i2c_msg_read(struct device *dev, struct i2c_msg *msg,
 {
 	const struct i2c_stm32_config *cfg = DEV_CFG(dev);
 	I2C_TypeDef *i2c = cfg->i2c;
-	unsigned int len = 0;
+	unsigned int len = 0U;
 	u8_t *buf = msg->buf;
 
 	msg_init(dev, msg, next_msg_flags, slave, LL_I2C_REQUEST_READ);
@@ -537,7 +571,9 @@ int stm32_i2c_msg_read(struct device *dev, struct i2c_msg *msg,
 	len = msg->len;
 	while (len) {
 		while (!LL_I2C_IsActiveFlag_RXNE(i2c)) {
-			;
+			if (check_errors(dev, __func__)) {
+				return -EIO;
+			}
 		}
 
 		*buf = LL_I2C_ReceiveData8(i2c);
@@ -545,9 +581,7 @@ int stm32_i2c_msg_read(struct device *dev, struct i2c_msg *msg,
 		len--;
 	}
 
-	msg_done(dev, msg->flags);
-
-	return 0;
+	return msg_done(dev, msg->flags);
 }
 #endif
 
@@ -558,21 +592,21 @@ int stm32_i2c_configure_timing(struct device *dev, u32_t clock)
 	I2C_TypeDef *i2c = cfg->i2c;
 	u32_t i2c_hold_time_min, i2c_setup_time_min;
 	u32_t i2c_h_min_time, i2c_l_min_time;
-	u32_t presc = 1;
-	u32_t timing = 0;
+	u32_t presc = 1U;
+	u32_t timing = 0U;
 
 	switch (I2C_SPEED_GET(data->dev_config)) {
 	case I2C_SPEED_STANDARD:
-		i2c_h_min_time = 4000;
-		i2c_l_min_time = 4700;
-		i2c_hold_time_min = 500;
-		i2c_setup_time_min = 1250;
+		i2c_h_min_time = 4000U;
+		i2c_l_min_time = 4700U;
+		i2c_hold_time_min = 500U;
+		i2c_setup_time_min = 1250U;
 		break;
 	case I2C_SPEED_FAST:
-		i2c_h_min_time = 600;
-		i2c_l_min_time = 1300;
-		i2c_hold_time_min = 375;
-		i2c_setup_time_min = 500;
+		i2c_h_min_time = 600U;
+		i2c_l_min_time = 1300U;
+		i2c_hold_time_min = 375U;
+		i2c_setup_time_min = 500U;
 		break;
 	default:
 		return -EINVAL;
@@ -602,7 +636,7 @@ int stm32_i2c_configure_timing(struct device *dev, u32_t clock)
 		break;
 	} while (presc < 16);
 
-	if (presc >= 16) {
+	if (presc >= 16U) {
 		LOG_DBG("I2C:failed to find prescaler value");
 		return -EINVAL;
 	}

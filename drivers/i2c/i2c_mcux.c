@@ -83,7 +83,7 @@ static void i2c_mcux_master_transfer_callback(I2C_Type *base,
 
 static u32_t i2c_mcux_convert_flags(int msg_flags)
 {
-	u32_t flags = 0;
+	u32_t flags = 0U;
 
 	if (!(msg_flags & I2C_MSG_STOP)) {
 		flags |= kI2C_TransferNoStopFlag;
@@ -119,6 +119,13 @@ static int i2c_mcux_transfer(struct device *dev, struct i2c_msg *msgs,
 		transfer.subaddressSize = 0;
 		transfer.data = msgs->buf;
 		transfer.dataSize = msgs->len;
+
+		/* Prevent the controller to send a start condition between
+		 * messages, except if explicitely requested.
+		 */
+		if (i != 0 && !(msgs->flags & I2C_MSG_RESTART)) {
+			transfer.flags |= kI2C_TransferNoStartFlag;
+		}
 
 		/* Start the transfer */
 		status = I2C_MasterTransferNonBlocking(base,
@@ -174,7 +181,7 @@ static int i2c_mcux_init(struct device *dev)
 	I2C_MasterTransferCreateHandle(base, &data->handle,
 			i2c_mcux_master_transfer_callback, dev);
 
-	bitrate_cfg = _i2c_map_dt_bitrate(config->bitrate);
+	bitrate_cfg = i2c_map_dt_bitrate(config->bitrate);
 
 	error = i2c_mcux_configure(dev, I2C_MODE_MASTER | bitrate_cfg);
 	if (error) {

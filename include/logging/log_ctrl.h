@@ -16,6 +16,7 @@ extern "C" {
 /**
  * @brief Logger
  * @defgroup logger Logger system
+ * @ingroup logging
  * @{
  * @}
  */
@@ -47,7 +48,7 @@ void log_init(void);
  *
  * See CONFIG_LOG_PROCESS_TRIGGER_THRESHOLD.
  *
- * @note Function has asserts and has no effect when CONFIG_LOG_PROCESS is set.
+ * @note Function has asserts and has no effect when CONFIG_LOG_PROCESS_THREAD is set.
  *
  * @param process_tid Process thread id. Used to wake up the thread.
  */

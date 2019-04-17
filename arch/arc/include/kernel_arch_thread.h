@@ -54,7 +54,7 @@ struct _thread_arch {
 	/* one of the _CAUSE_xxxx definitions above */
 	int relinquish_cause;
 
-	/* return value from _Swap */
+	/* return value from z_swap */
 	unsigned int return_value;
 
 #ifdef CONFIG_ARC_STACK_CHECKING
@@ -71,7 +71,6 @@ struct _thread_arch {
 
 #ifdef CONFIG_USERSPACE
 	u32_t priv_stack_start;
-	u32_t priv_stack_size;
 #endif
 };
 

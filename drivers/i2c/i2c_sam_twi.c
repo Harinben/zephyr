@@ -72,7 +72,7 @@ struct i2c_sam_twi_dev_data {
 
 static int i2c_clk_set(Twi *const twi, u32_t speed)
 {
-	u32_t ck_div = 0;
+	u32_t ck_div = 0U;
 	u32_t cl_div;
 	bool div_completed = false;
 
@@ -80,10 +80,10 @@ static int i2c_clk_set(Twi *const twi, u32_t speed)
 	 *  T_low = ( ( CLDIV × 2^CKDIV ) + 4 ) × T_MCK
 	 */
 	while (!div_completed) {
-		cl_div =   ((SOC_ATMEL_SAM_MCK_FREQ_HZ / (2 * speed)) - 4)
+		cl_div =   ((SOC_ATMEL_SAM_MCK_FREQ_HZ / (speed * 2U)) - 4)
 			 / (1 << ck_div);
 
-		if (cl_div <= 255) {
+		if (cl_div <= 255U) {
 			div_completed = true;
 		} else {
 			ck_div++;
@@ -168,7 +168,7 @@ static void read_msg_start(Twi *const twi, struct twi_msg *msg, u8_t daddr)
 	twi->TWI_MMR = TWI_MMR_MREAD | TWI_MMR_DADR(daddr);
 
 	/* In single data byte read the START and STOP must both be set */
-	twi_cr_stop = (msg->len == 1) ? TWI_CR_STOP : 0;
+	twi_cr_stop = (msg->len == 1U) ? TWI_CR_STOP : 0;
 	/* Start the transfer by sending START condition */
 	twi->TWI_CR = TWI_CR_START | twi_cr_stop;
 
@@ -197,8 +197,8 @@ static int i2c_sam_twi_transfer(struct device *dev, struct i2c_msg *msgs,
 	for (; num_msgs > 0; num_msgs--, msgs++) {
 		dev_data->msg.buf = msgs->buf;
 		dev_data->msg.len = msgs->len;
-		dev_data->msg.idx = 0;
-		dev_data->msg.twi_sr = 0;
+		dev_data->msg.idx = 0U;
+		dev_data->msg.twi_sr = 0U;
 		dev_data->msg.flags = msgs->flags;
 
 		/*
@@ -255,7 +255,7 @@ static void i2c_sam_twi_isr(void *arg)
 
 		msg->buf[msg->idx++] = twi->TWI_RHR;
 
-		if (msg->idx == msg->len - 1) {
+		if (msg->idx == msg->len - 1U) {
 			/* Send a STOP condition on the TWI */
 			twi->TWI_CR = TWI_CR_STOP;
 		}
@@ -315,7 +315,7 @@ static int i2c_sam_twi_initialize(struct device *dev)
 	/* Reset TWI module */
 	twi->TWI_CR = TWI_CR_SWRST;
 
-	bitrate_cfg = _i2c_map_dt_bitrate(dev_cfg->bitrate);
+	bitrate_cfg = i2c_map_dt_bitrate(dev_cfg->bitrate);
 
 	ret = i2c_sam_twi_configure(dev, I2C_MODE_MASTER | bitrate_cfg);
 	if (ret < 0) {

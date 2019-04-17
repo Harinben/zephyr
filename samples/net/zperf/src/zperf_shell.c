@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_zperf_shell
-#define NET_LOG_LEVEL LOG_LEVEL_DBG
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_zperf_sample, LOG_LEVEL_DBG);
 
 #include <ctype.h>
 #include <stdio.h>
@@ -36,8 +36,8 @@
 
 static const char *CONFIG =
 		"unified"
-#if defined(CONFIG_WLAN)
-		" wlan"
+#if defined(CONFIG_WIFI)
+		" wifi"
 #endif
 #if defined(CONFIG_NET_L2_ETHERNET)
 		" ethernet"
@@ -218,6 +218,26 @@ int zperf_get_ipv4_addr(const struct shell *shell, char *host,
 	return 0;
 }
 
+const struct in_addr *zperf_get_default_if_in4_addr(void)
+{
+#if CONFIG_NET_IPV4
+	return net_if_ipv4_select_src_addr(NULL,
+					   net_ipv4_unspecified_address());
+#else
+	return NULL;
+#endif
+}
+
+const struct in6_addr *zperf_get_default_if_in6_addr(void)
+{
+#if CONFIG_NET_IPV6
+	return net_if_ipv6_select_src_addr(NULL,
+					   net_ipv6_unspecified_address());
+#else
+	return NULL;
+#endif
+}
+
 static int cmd_setip(const struct shell *shell, size_t argc, char *argv[])
 {
 	int start = 0;
@@ -225,8 +245,8 @@ static int cmd_setip(const struct shell *shell, size_t argc, char *argv[])
 	do_init(shell);
 
 	if (IS_ENABLED(CONFIG_NET_IPV6) && !IS_ENABLED(CONFIG_NET_IPV4)) {
-		if (argc != 3 || shell_help_requested(shell)) {
-			shell_help_print(shell, NULL, 0);
+		if (argc != 3) {
+			shell_help(shell);
 			return -ENOEXEC;
 		}
 
@@ -243,8 +263,8 @@ static int cmd_setip(const struct shell *shell, size_t argc, char *argv[])
 	}
 
 	if (IS_ENABLED(CONFIG_NET_IPV4) && !IS_ENABLED(CONFIG_NET_IPV6)) {
-		if (argc != 2 || shell_help_requested(shell)) {
-			shell_help_print(shell, NULL, 0);
+		if (argc != 2) {
+			shell_help(shell);
 			return -ENOEXEC;
 		}
 
@@ -261,8 +281,8 @@ static int cmd_setip(const struct shell *shell, size_t argc, char *argv[])
 
 	if (IS_ENABLED(CONFIG_NET_IPV6) && IS_ENABLED(CONFIG_NET_IPV4)) {
 		if (net_addr_pton(AF_INET6, argv[start + 1], &ipv6) < 0) {
-			if (argc != 2 || shell_help_requested(shell)) {
-				shell_help_print(shell, NULL, 0);
+			if (argc != 2) {
+				shell_help(shell);
 				return -ENOEXEC;
 			}
 
@@ -277,8 +297,8 @@ static int cmd_setip(const struct shell *shell, size_t argc, char *argv[])
 				      "Setting IP address %s\n",
 				      net_sprint_ipv4_addr(&ipv4));
 		} else {
-			if (argc != 3 || shell_help_requested(shell)) {
-				shell_help_print(shell, NULL, 0);
+			if (argc != 3) {
+				shell_help(shell);
 				return -ENOEXEC;
 			}
 
@@ -307,11 +327,6 @@ static int cmd_udp_download(const struct shell *shell, size_t argc,
 
 		do_init(shell);
 
-		if (shell_help_requested(shell)) {
-			shell_help_print(shell, NULL, 0);
-			return -ENOEXEC;
-		}
-
 		if (argc >= 2) {
 			port = strtoul(argv[start + 1], NULL, 10);
 		} else {
@@ -324,7 +339,7 @@ static int cmd_udp_download(const struct shell *shell, size_t argc,
 			return -ENOEXEC;
 		}
 
-		zperf_receiver_init(shell, port);
+		zperf_udp_receiver_init(shell, port);
 
 		k_yield();
 
@@ -347,23 +362,23 @@ static void shell_udp_upload_print_stats(const struct shell *shell,
 
 		shell_fprintf(shell, SHELL_NORMAL, "-\nUpload completed!\n");
 
-		if (results->time_in_us != 0) {
+		if (results->time_in_us != 0U) {
 			rate_in_kbps = (u32_t)
 				(((u64_t)results->nb_bytes_sent *
 				  (u64_t)8 * (u64_t)USEC_PER_SEC) /
-				 ((u64_t)results->time_in_us * 1024));
+				 ((u64_t)results->time_in_us * 1024U));
 		} else {
-			rate_in_kbps = 0;
+			rate_in_kbps = 0U;
 		}
 
-		if (results->client_time_in_us != 0) {
+		if (results->client_time_in_us != 0U) {
 			client_rate_in_kbps = (u32_t)
 				(((u64_t)results->nb_packets_sent *
 				  (u64_t)results->packet_size * (u64_t)8 *
 				  (u64_t)USEC_PER_SEC) /
-				 ((u64_t)results->client_time_in_us * 1024));
+				 ((u64_t)results->client_time_in_us * 1024U));
 		} else {
-			client_rate_in_kbps = 0;
+			client_rate_in_kbps = 0U;
 		}
 
 		if (!rate_in_kbps) {
@@ -412,14 +427,14 @@ static void shell_tcp_upload_print_stats(const struct shell *shell,
 
 		shell_fprintf(shell, SHELL_NORMAL, "-\nUpload completed!\n");
 
-		if (results->client_time_in_us != 0) {
+		if (results->client_time_in_us != 0U) {
 			client_rate_in_kbps = (u32_t)
 				(((u64_t)results->nb_packets_sent *
 				  (u64_t)results->packet_size * (u64_t)8 *
 				  (u64_t)USEC_PER_SEC) /
-				 ((u64_t)results->client_time_in_us * 1024));
+				 ((u64_t)results->client_time_in_us * 1024U));
 		} else {
-			client_rate_in_kbps = 0;
+			client_rate_in_kbps = 0U;
 		}
 
 		shell_fprintf(shell, SHELL_NORMAL, "Duration:\t");
@@ -521,6 +536,7 @@ static int execute_upload(const struct shell *shell,
 			  struct sockaddr_in6 *ipv6,
 			  struct sockaddr_in *ipv4,
 			  bool is_udp,
+			  int port,
 			  char *argv0,
 			  unsigned int duration_in_ms,
 			  unsigned int packet_size,
@@ -569,7 +585,7 @@ static int execute_upload(const struct shell *shell,
 				goto out;
 			}
 
-			zperf_udp_upload(shell, context6, duration_in_ms,
+			zperf_udp_upload(shell, context6, port, duration_in_ms,
 					 packet_size, rate_in_kbps, &results);
 			shell_udp_upload_print_stats(shell, &results);
 		}
@@ -588,7 +604,7 @@ static int execute_upload(const struct shell *shell,
 				goto out;
 			}
 
-			zperf_udp_upload(shell, context4, duration_in_ms,
+			zperf_udp_upload(shell, context4, port, duration_in_ms,
 					 packet_size, rate_in_kbps, &results);
 			shell_udp_upload_print_stats(shell, &results);
 		}
@@ -617,7 +633,9 @@ static int execute_upload(const struct shell *shell,
 			/* We either upload using IPv4 or IPv6, not both at
 			 * the same time.
 			 */
-			net_context_put(context4);
+			if (IS_ENABLED(CONFIG_NET_IPV4)) {
+				net_context_put(context4);
+			}
 
 			zperf_tcp_upload(shell, context6, duration_in_ms,
 					 packet_size, &results);
@@ -641,7 +659,9 @@ static int execute_upload(const struct shell *shell,
 				goto out;
 			}
 
-			net_context_put(context6);
+			if (IS_ENABLED(CONFIG_NET_IPV6)) {
+				net_context_put(context6);
+			}
 
 			zperf_tcp_upload(shell, context4, duration_in_ms,
 					 packet_size, &results);
@@ -658,8 +678,12 @@ static int execute_upload(const struct shell *shell,
 	}
 
 out:
-	net_context_put(context6);
-	net_context_put(context4);
+	if (IS_ENABLED(CONFIG_NET_IPV6)) {
+		net_context_put(context6);
+	}
+	if (IS_ENABLED(CONFIG_NET_IPV4)) {
+		net_context_put(context4);
+	}
 
 	return 0;
 }
@@ -685,12 +709,12 @@ static int shell_cmd_upload(const struct shell *shell, size_t argc,
 
 		if (is_udp) {
 			if (IS_ENABLED(CONFIG_NET_UDP)) {
-				shell_help_print(shell, NULL, 0);
+				shell_help(shell);
 				return -ENOEXEC;
 			}
 		} else {
 			if (IS_ENABLED(CONFIG_NET_TCP)) {
-				shell_help_print(shell, NULL, 0);
+				shell_help(shell);
 				return -ENOEXEC;
 			}
 		}
@@ -777,7 +801,7 @@ static int shell_cmd_upload(const struct shell *shell, size_t argc,
 	if (argc > 4) {
 		packet_size = parse_number(argv[start + 4], K, K_UNIT);
 	} else {
-		packet_size = 256;
+		packet_size = 256U;
 	}
 
 	if (argc > 5) {
@@ -785,11 +809,11 @@ static int shell_cmd_upload(const struct shell *shell, size_t argc,
 			(parse_number(argv[start + 5], K, K_UNIT) +
 			 1023) / 1024;
 	} else {
-		rate_in_kbps = 10;
+		rate_in_kbps = 10U;
 	}
 
 	return execute_upload(shell, context6, context4, family, &ipv6, &ipv4,
-			      is_udp, argv[start], duration_in_ms,
+			      is_udp, port, argv[start], duration_in_ms,
 			      packet_size, rate_in_kbps);
 }
 
@@ -825,12 +849,12 @@ static int shell_cmd_upload2(const struct shell *shell, size_t argc,
 
 		if (is_udp) {
 			if (IS_ENABLED(CONFIG_NET_UDP)) {
-				shell_help_print(shell, NULL, 0);
+				shell_help(shell);
 				return -ENOEXEC;
 			}
 		} else {
 			if (IS_ENABLED(CONFIG_NET_TCP)) {
-				shell_help_print(shell, NULL, 0);
+				shell_help(shell);
 				return -ENOEXEC;
 			}
 		}
@@ -896,7 +920,7 @@ static int shell_cmd_upload2(const struct shell *shell, size_t argc,
 	if (argc > 3) {
 		packet_size = parse_number(argv[start + 3], K, K_UNIT);
 	} else {
-		packet_size = 256;
+		packet_size = 256U;
 	}
 
 	if (argc > 4) {
@@ -904,11 +928,11 @@ static int shell_cmd_upload2(const struct shell *shell, size_t argc,
 			(parse_number(argv[start + 4], K, K_UNIT) + 1023) /
 			1024;
 	} else {
-		rate_in_kbps = 10;
+		rate_in_kbps = 10U;
 	}
 
 	return execute_upload(shell, context6, context4, family, &in6_addr_dst,
-			      &in4_addr_dst, is_udp, argv[start],
+			      &in4_addr_dst, is_udp, port, argv[start],
 			      duration_in_ms, packet_size, rate_in_kbps);
 }
 
@@ -933,7 +957,7 @@ static int cmd_tcp(const struct shell *shell, size_t argc, char *argv[])
 	if (IS_ENABLED(CONFIG_NET_TCP)) {
 		do_init(shell);
 
-		shell_help_print(shell, NULL, 0);
+		shell_help(shell);
 		return -ENOEXEC;
 	}
 
@@ -948,7 +972,7 @@ static int cmd_udp(const struct shell *shell, size_t argc, char *argv[])
 	if (IS_ENABLED(CONFIG_NET_UDP)) {
 		do_init(shell);
 
-		shell_help_print(shell, NULL, 0);
+		shell_help(shell);
 		return -ENOEXEC;
 	}
 
@@ -966,19 +990,25 @@ static int cmd_connectap(const struct shell *shell, size_t argc, char *argv[])
 	return 0;
 }
 
+static bool tcp_running;
+
+void zperf_tcp_stopped(void)
+{
+	tcp_running = false;
+}
+
+void zperf_tcp_started(void)
+{
+	tcp_running = true;
+}
+
 static int cmd_tcp_download(const struct shell *shell, size_t argc,
 			    char *argv[])
 {
 	if (IS_ENABLED(CONFIG_NET_TCP)) {
-		static bool tcp_stopped = true;
 		int port;
 
 		do_init(shell);
-
-		if (shell_help_requested(shell)) {
-			shell_help_print(shell, NULL, 0);
-			return -ENOEXEC;
-		}
 
 		if (argc >= 2) {
 			port = strtoul(argv[1], NULL, 10);
@@ -986,15 +1016,13 @@ static int cmd_tcp_download(const struct shell *shell, size_t argc,
 			port = DEF_PORT;
 		}
 
-		if (!tcp_stopped) {
+		if (tcp_running) {
 			shell_fprintf(shell, SHELL_WARNING,
 				      "TCP server already started!\n");
 			return -ENOEXEC;
 		}
 
 		zperf_tcp_receiver_init(shell, port);
-
-		tcp_stopped = false;
 
 		shell_fprintf(shell, SHELL_NORMAL,
 			      "TCP server started on port %u\n", port);
@@ -1077,8 +1105,7 @@ static void zperf_init(const struct shell *shell)
 	zperf_session_init();
 }
 
-SHELL_CREATE_STATIC_SUBCMD_SET(zperf_cmd_tcp)
-{
+SHELL_STATIC_SUBCMD_SET_CREATE(zperf_cmd_tcp,
 	SHELL_CMD(upload, NULL,
 		  "<dest ip> <dest port> <duration> <packet size>[K]\n"
 		  "<dest ip>     IP destination\n"
@@ -1112,10 +1139,9 @@ SHELL_CREATE_STATIC_SUBCMD_SET(zperf_cmd_tcp)
 		  "Example: tcp download 5001\n",
 		  cmd_tcp_download),
 	SHELL_SUBCMD_SET_END
-};
+);
 
-SHELL_CREATE_STATIC_SUBCMD_SET(zperf_cmd_udp)
-{
+SHELL_STATIC_SUBCMD_SET_CREATE(zperf_cmd_udp,
 	SHELL_CMD(upload, NULL,
 		  "<dest ip> [<dest port> <duration> <packet size>[K] "
 							"<baud rate>[K|M]]\n"
@@ -1152,10 +1178,9 @@ SHELL_CREATE_STATIC_SUBCMD_SET(zperf_cmd_udp)
 		  "Example: udp download 5001\n",
 		  cmd_udp_download),
 	SHELL_SUBCMD_SET_END
-};
+);
 
-SHELL_CREATE_STATIC_SUBCMD_SET(zperf_commands)
-{
+SHELL_STATIC_SUBCMD_SET_CREATE(zperf_commands,
 	SHELL_CMD(connectap, NULL,
 		  "Connect to AP",
 		  cmd_connectap),
@@ -1175,7 +1200,7 @@ SHELL_CREATE_STATIC_SUBCMD_SET(zperf_commands)
 		  "Zperf version",
 		  cmd_version),
 	SHELL_SUBCMD_SET_END
-};
+);
 
 SHELL_CMD_REGISTER(zperf, &zperf_commands, "Zperf commands", NULL);
 

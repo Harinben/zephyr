@@ -68,14 +68,33 @@
 	#define RAM_ADDR CONFIG_SRAM_BASE_ADDRESS
 #endif
 
+/* Set alignment to CONFIG_ARM_MPU_REGION_MIN_ALIGN_AND_SIZE
+ * to make linker section alignment comply with MPU granularity.
+ */
+#if defined(CONFIG_ARM_MPU_REGION_MIN_ALIGN_AND_SIZE)
+_region_min_align = CONFIG_ARM_MPU_REGION_MIN_ALIGN_AND_SIZE;
+#else
+/* If building without MPU support, use default 4-byte alignment. */
+_region_min_align = 4;
+#endif
+
+#if defined(CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT)
+#define MPU_ALIGN(region_size) \
+    . = ALIGN(_region_min_align); \
+    . = ALIGN( 1 << LOG2CEIL(region_size))
+#else
+#define MPU_ALIGN(region_size) \
+    . = ALIGN(_region_min_align)
+#endif
+
 MEMORY
     {
     FLASH                 (rx) : ORIGIN = ROM_ADDR, LENGTH = ROM_SIZE
 #ifdef CONFIG_TI_CCFG_PRESENT
     FLASH_CCFG            (rwx): ORIGIN = CCFG_ADDR, LENGTH = CCFG_SIZE
 #endif
-#ifdef CONFIG_CCM_BASE_ADDRESS
-    CCM                   (rw) : ORIGIN = CONFIG_CCM_BASE_ADDRESS, LENGTH = CONFIG_CCM_SIZE * 1K
+#ifdef DT_CCM_BASE_ADDRESS
+    CCM                   (rw) : ORIGIN = DT_CCM_BASE_ADDRESS, LENGTH = DT_CCM_SIZE * 1K
 #endif
     SRAM                  (wx) : ORIGIN = RAM_ADDR, LENGTH = RAM_SIZE
 
@@ -94,12 +113,12 @@ SECTIONS
      * .plt and .iplt are here according to 'arm-zephyr-elf-ld --verbose',
      * before text section.
      */
-    SECTION_PROLOGUE(.plt,,)
+    /DISCARD/ :
 	{
 	*(.plt)
 	}
 
-    SECTION_PROLOGUE(.iplt,,)
+    /DISCARD/ :
 	{
 	*(.iplt)
 	}
@@ -116,6 +135,17 @@ SECTIONS
 	KEEP(*(.dbghdr))
 	KEEP(*(".dbghdr.*"))
 #endif
+
+#ifdef CONFIG_NXP_IMX_RT_BOOT_HEADER
+	KEEP(*(.boot_hdr.conf))
+	. = CONFIG_IMAGE_VECTOR_TABLE_OFFSET;
+	KEEP(*(.boot_hdr.ivt))
+	KEEP(*(.boot_hdr.data))
+#ifdef CONFIG_DEVICE_CONFIGURATION_DATA
+	KEEP(*(.boot_hdr.dcd_data))
+#endif
+#endif
+
 	. = CONFIG_TEXT_SECTION_OFFSET;
 
 #if defined(CONFIG_SW_VECTOR_RELAY)
@@ -142,6 +172,16 @@ SECTIONS
 	KEEP(*(".kinetis_flash_config.*"))
 
 	_vector_end = .;
+	} GROUP_LINK_IN(ROMABLE_REGION)
+
+#ifdef CONFIG_CODE_DATA_RELOCATION
+
+#include <linker_relocate.ld>
+
+#endif /* CONFIG_CODE_DATA_RELOCATION */
+
+    SECTION_PROLOGUE(_TEXT_SECTION_NAME_2,,)
+	{
 	_image_text_start = .;
 	*(.text)
 	*(".text.*")
@@ -253,8 +293,7 @@ SECTIONS
      * These are here according to 'arm-zephyr-elf-ld --verbose',
      * before data section.
      */
-    SECTION_PROLOGUE(.got,,)
-	{
+    /DISCARD/ : {
 	*(.got.plt)
 	*(.igot.plt)
 	*(.got)
@@ -263,6 +302,12 @@ SECTIONS
 
     GROUP_START(RAMABLE_REGION)
 
+	. = RAM_ADDR;
+	/* Align the start of image SRAM with the
+	 * minimum granularity required by MPU.
+	 */
+	. = ALIGN(_region_min_align);
+	_image_ram_start = .;
 
 #if defined(CONFIG_SOC_SERIES_STM32F0X) && !defined(CONFIG_IS_BOOTLOADER)
     /* Must be first in ramable region */
@@ -283,70 +328,71 @@ SECTIONS
 	}
 #endif
 
-#include <app_data_alignment.ld>
-
-#if defined(CONFIG_APP_SHARED_MEM)
-#if defined(CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT)
-#define APP_SHARED_ALIGN . = ALIGN(4);
-		#include <app_smem.ld>
-#else
-	SECTION_PROLOGUE(_APP_SMEM_SECTION_NAME, (OPTIONAL),)
+#ifdef CONFIG_COVERAGE_GCOV
+    SECTION_DATA_PROLOGUE(_GCOV_BSS_SECTION_NAME,(NOLOAD),)
 	{
-		. = ALIGN(4);
-		_image_ram_start = .;
-		_app_smem_start = .;
-		APP_SMEM_SECTION()
-		/* 32-byte align end of app shared area to make MPU friendly */
-		. = ALIGN(_app_data_align);
-		_app_smem_end = .;
 
+#ifdef CONFIG_USERSPACE
+       MPU_ALIGN(__gcov_bss_end - __gcov_bss_start );
+#else  /* CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT && CONFIG_USERSPACE */
+       . = ALIGN(_region_min_align);
+#endif /* CONFIG_USERSPACE */
+
+       __gcov_bss_start = .;
+       KEEP(*(".bss.__gcov0.*"));
+
+#ifdef CONFIG_USERSPACE
+       MPU_ALIGN(__gcov_bss_end - __gcov_bss_start );
+#else  /* CONFIG_USERSPACE */
+       . = ALIGN(_region_min_align);
+#endif /* CONFIG_USERSPACE */
+
+       __gcov_bss_end = .;
+
+	} GROUP_LINK_IN(RAMABLE_REGION)
+
+       __gcov_bss_num_words = ((__gcov_bss_end - __gcov_bss_start) >> 2);
+       __gcov_bss_size = __gcov_bss_end - __gcov_bss_start;
+
+#endif /* CONFIG_COVERAGE_GCOV */
+
+#if defined(CONFIG_NOCACHE_MEMORY)
+	/* Non-cached region of RAM */
+	SECTION_PROLOGUE(_NOCACHE_SECTION_NAME,(NOLOAD),)
+	{
+		MPU_ALIGN(_nocache_ram_size);
+		_nocache_ram_start = .;
+		*(.nocache)
+		*(".nocache.*")
+		MPU_ALIGN(_nocache_ram_size);
+		_nocache_ram_end = .;
+	} GROUP_LINK_IN(RAMABLE_REGION)
+	_nocache_ram_size = _nocache_ram_end - _nocache_ram_start;
+#endif /* CONFIG_NOCACHE_MEMORY */
+
+#if defined(CONFIG_ARCH_HAS_RAMFUNC_SUPPORT)
+	SECTION_DATA_PROLOGUE(.ramfunc,,)
+	{
+		MPU_ALIGN(_ramfunc_ram_size);
+		_ramfunc_ram_start = .;
+		*(.ramfunc)
+		*(".ramfunc.*")
+		MPU_ALIGN(_ramfunc_ram_size);
+		_ramfunc_ram_end = .;
 	} GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
-#endif  /* CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT */
+	_ramfunc_ram_size = _ramfunc_ram_end - _ramfunc_ram_start;
+	_ramfunc_rom_start = LOADADDR(.ramfunc);
+#endif /* CONFIG_ARCH_HAS_RAMFUNC_SUPPORT */
+
+#if defined(CONFIG_USERSPACE)
+#define APP_SHARED_ALIGN . = ALIGN(_region_min_align);
+#define SMEM_PARTITION_ALIGN MPU_ALIGN
+
+#include <app_smem.ld>
 
 	_app_smem_size = _app_smem_end - _app_smem_start;
 	_app_smem_rom_start = LOADADDR(_APP_SMEM_SECTION_NAME);
-#endif  /* CONFIG_APP_SHARED_MEM */
-
-#ifdef CONFIG_APPLICATION_MEMORY
-	SECTION_DATA_PROLOGUE(_APP_DATA_SECTION_NAME, (OPTIONAL),)
-	{
-
-		__app_ram_start = .;
-		__app_data_ram_start = .;
-		APP_INPUT_SECTION(.data)
-		APP_INPUT_SECTION(".data.*")
-		__app_data_ram_end = .;
-	} GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
-
-	__app_data_rom_start = LOADADDR(_APP_DATA_SECTION_NAME);
-
-	SECTION_PROLOGUE(_APP_BSS_SECTION_NAME, (NOLOAD OPTIONAL),)
-	{
-		__app_bss_start = .;
-		APP_INPUT_SECTION(.bss)
-		APP_INPUT_SECTION(".bss.*")
-		APP_INPUT_SECTION(COMMON)
-		__app_bss_end = .;
-	} GROUP_DATA_LINK_IN(RAMABLE_REGION, RAMABLE_REGION)
-
-	__app_bss_num_words = (__app_bss_end - __app_bss_start) >> 2;
-
-	SECTION_PROLOGUE(_APP_NOINIT_SECTION_NAME, (NOLOAD OPTIONAL),)
-	{
-		APP_INPUT_SECTION(.noinit)
-		APP_INPUT_SECTION(".noinit.*")
-	} GROUP_DATA_LINK_IN(RAMABLE_REGION, RAMABLE_REGION)
-
-	__app_last_address_used = .;
-
-	/* Pad out application ram area to make MPU friendly */
-	SECTION_PROLOGUE(app_pad, (NOLOAD OPTIONAL),)
-	{
-		. = ALIGN(_app_data_align);
-	} GROUP_DATA_LINK_IN(RAMABLE_REGION, RAMABLE_REGION)
-	__app_ram_end = .;
-	__app_ram_size = __app_ram_end - __app_ram_start;
-#endif /* CONFIG_APPLICATION_MEMORY */
+#endif  /* CONFIG_USERSPACE */
 
     SECTION_DATA_PROLOGUE(_BSS_SECTION_NAME,(NOLOAD),)
 	{
@@ -358,9 +404,9 @@ SECTIONS
 	__bss_start = .;
 	__kernel_ram_start = .;
 
-	KERNEL_INPUT_SECTION(.bss)
-	KERNEL_INPUT_SECTION(".bss.*")
-	KERNEL_INPUT_SECTION(COMMON)
+	*(.bss)
+	*(".bss.*")
+	*(COMMON)
 	*(".kernel_bss.*")
 
         /*
@@ -376,8 +422,8 @@ SECTIONS
          * This section is used for non-initialized objects that
          * will not be cleared during the boot process.
          */
-        KERNEL_INPUT_SECTION(.noinit)
-        KERNEL_INPUT_SECTION(".noinit.*")
+        *(.noinit)
+        *(".noinit.*")
 	*(".kernel_noinit.*")
 
 #ifdef CONFIG_SOC_NOINIT_LD
@@ -389,8 +435,8 @@ SECTIONS
     SECTION_DATA_PROLOGUE(_DATA_SECTION_NAME,,)
 	{
 	__data_ram_start = .;
-	KERNEL_INPUT_SECTION(.data)
-	KERNEL_INPUT_SECTION(".data.*")
+	*(.data)
+	*(".data.*")
 	*(".kernel.*")
 
 #ifdef CONFIG_SOC_RWDATA_LD
@@ -425,11 +471,11 @@ SECTIONS
 
     GROUP_END(RAMABLE_REGION)
 
-#ifdef CONFIG_CCM_BASE_ADDRESS
+#ifdef DT_CCM_BASE_ADDRESS
 
     GROUP_START(CCM)
 
-	SECTION_PROLOGUE(_CCM_BSS_SECTION_NAME, (NOLOAD OPTIONAL),SUBALIGN(4))
+	SECTION_PROLOGUE(_CCM_BSS_SECTION_NAME, (NOLOAD),SUBALIGN(4))
 	{
 		__ccm_start = .;
 		__ccm_bss_start = .;
@@ -439,7 +485,7 @@ SECTIONS
 
 	__ccm_bss_end = .;
 
-	SECTION_PROLOGUE(_CCM_NOINIT_SECTION_NAME, (NOLOAD OPTIONAL),SUBALIGN(4))
+	SECTION_PROLOGUE(_CCM_NOINIT_SECTION_NAME, (NOLOAD),SUBALIGN(4))
 	{
 		__ccm_noinit_start = .;
 		*(.ccm_noinit)
@@ -448,7 +494,7 @@ SECTIONS
 
 	__ccm_noinit_end = .;
 
-	SECTION_PROLOGUE(_CCM_DATA_SECTION_NAME, (OPTIONAL),SUBALIGN(4))
+	SECTION_PROLOGUE(_CCM_DATA_SECTION_NAME,,SUBALIGN(4))
 	{
 		__ccm_data_start = .;
 		*(.ccm_data)
@@ -462,7 +508,7 @@ SECTIONS
 
     GROUP_END(CCM)
 
-#endif /* CONFIG_CCM_BASE_ADDRESS */
+#endif /* DT_CCM_BASE_ADDRESS */
 
 #ifdef CONFIG_CUSTOM_SECTIONS_LD
 /* Located in project source directory */
@@ -480,5 +526,14 @@ SECTIONS
 	KEEP(*(.ARM.attributes))
 	KEEP(*(.gnu.attributes))
 	}
+
+/* Must be last in romable region */
+SECTION_PROLOGUE(.last_section,(NOLOAD),)
+{
+} GROUP_LINK_IN(ROMABLE_REGION)
+
+/* To provide the image size as a const expression,
+ * calculate this value here. */
+_flash_used = LOADADDR(.last_section) - _image_rom_start;
 
     }

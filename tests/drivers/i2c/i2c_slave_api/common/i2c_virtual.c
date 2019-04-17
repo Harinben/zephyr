@@ -88,7 +88,7 @@ static int i2c_virtual_msg_write(struct device *dev, struct i2c_msg *msg,
 				 struct i2c_slave_config *config,
 				 bool prev_write)
 {
-	unsigned int len = 0;
+	unsigned int len = 0U;
 	u8_t *buf = msg->buf;
 	int ret;
 
@@ -180,7 +180,7 @@ static int i2c_virtual_transfer(struct device *dev, struct i2c_msg *msg,
 		}
 
 		/* Stop condition is required for the last message */
-		if ((num_msgs == 1) && !(current->flags & I2C_MSG_STOP)) {
+		if ((num_msgs == 1U) && !(current->flags & I2C_MSG_STOP)) {
 			ret = -EINVAL;
 			break;
 		}

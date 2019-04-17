@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_core
-#define NET_LOG_LEVEL CONFIG_NET_CORE_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_core, CONFIG_NET_CORE_LOG_LEVEL);
 
 #include <init.h>
 #include <kernel.h>
@@ -26,9 +26,11 @@
 #include <net/net_pkt.h>
 #include <net/net_core.h>
 #include <net/dns_resolve.h>
-#include <net/tcp.h>
 #include <net/gptp.h>
+
+#if defined(CONFIG_NET_LLDP)
 #include <net/lldp.h>
+#endif
 
 #include "net_private.h"
 #include "net_shell.h"
@@ -38,12 +40,12 @@
 
 #include "icmpv4.h"
 
-#if defined(CONFIG_NET_DHCPV4)
 #include "dhcpv4.h"
-#endif
 
 #include "route.h"
-#include "rpl.h"
+
+#include "packet_socket.h"
+#include "canbus_socket.h"
 
 #include "connection.h"
 #include "udp_internal.h"
@@ -52,11 +54,30 @@
 
 #include "net_stats.h"
 
+#if defined(CONFIG_INIT_STACKS)
+void net_analyze_stack(const char *name, const char *stack, size_t size)
+{
+	unsigned int pcnt, unused;
+
+	net_analyze_stack_get_values(stack, size, &pcnt, &unused);
+
+	NET_INFO("net (%p): %s stack real size %zu "
+		 "unused %u usage %zu/%zu (%u %%)",
+		 k_current_get(), name,
+		 size, unused, size - unused, size, pcnt);
+}
+#endif /* CONFIG_INIT_STACKS */
+
 static inline enum net_verdict process_data(struct net_pkt *pkt,
 					    bool is_loopback)
 {
 	int ret;
 	bool locally_routed = false;
+
+	ret = net_packet_socket_input(pkt);
+	if (ret != NET_CONTINUE) {
+		return ret;
+	}
 
 #if defined(CONFIG_NET_IPV6_FRAGMENT)
 	/* If the packet is routed back to us when we have reassembled
@@ -89,19 +110,25 @@ static inline enum net_verdict process_data(struct net_pkt *pkt,
 		}
 	}
 
+	ret = net_canbus_socket_input(pkt);
+	if (ret != NET_CONTINUE) {
+		return ret;
+	}
+
+	/* L2 has modified the buffer starting point, it is easier
+	 * to re-initialize the cursor rather than updating it.
+	 */
+	net_pkt_cursor_init(pkt);
+
 	/* IP version and header length. */
 	switch (NET_IPV6_HDR(pkt)->vtc & 0xf0) {
 #if defined(CONFIG_NET_IPV6)
 	case 0x60:
-		net_stats_update_ipv6_recv(net_pkt_iface(pkt));
-		net_pkt_set_family(pkt, PF_INET6);
-		return net_ipv6_process_pkt(pkt, is_loopback);
+		return net_ipv6_input(pkt, is_loopback);
 #endif
 #if defined(CONFIG_NET_IPV4)
 	case 0x40:
-		net_stats_update_ipv4_recv(net_pkt_iface(pkt));
-		net_pkt_set_family(pkt, PF_INET);
-		return net_ipv4_process_pkt(pkt);
+		return net_ipv4_input(pkt);
 #endif
 	}
 
@@ -283,6 +310,9 @@ int net_send_data(struct net_pkt *pkt)
 	}
 #endif
 
+	net_pkt_trim_buffer(pkt);
+	net_pkt_cursor_init(pkt);
+
 	status = check_ip_addr(pkt);
 	if (status < 0) {
 		return status;
@@ -306,11 +336,7 @@ static void net_rx(struct net_if *iface, struct net_pkt *pkt)
 {
 	size_t pkt_len;
 
-#if defined(CONFIG_NET_STATISTICS)
-	pkt_len = pkt->total_pkt_len;
-#else
 	pkt_len = net_pkt_get_len(pkt);
-#endif
 
 	NET_DBG("Received pkt %p len %zu", pkt, pkt_len);
 
@@ -339,10 +365,8 @@ static void net_queue_rx(struct net_if *iface, struct net_pkt *pkt)
 	k_work_init(net_pkt_work(pkt), process_rx_packet);
 
 #if defined(CONFIG_NET_STATISTICS)
-	pkt->total_pkt_len = net_pkt_get_len(pkt);
-
 	net_stats_update_tc_recv_pkt(iface, tc);
-	net_stats_update_tc_recv_bytes(iface, tc, pkt->total_pkt_len);
+	net_stats_update_tc_recv_bytes(iface, tc, net_pkt_get_len(pkt));
 	net_stats_update_tc_recv_priority(iface, tc, prio);
 #endif
 
@@ -367,6 +391,9 @@ int net_recv_data(struct net_if *iface, struct net_pkt *pkt)
 	if (!atomic_test_bit(iface->if_dev->flags, NET_IF_UP)) {
 		return -ENETDOWN;
 	}
+
+	net_pkt_set_overwrite(pkt, true);
+	net_pkt_cursor_init(pkt);
 
 	NET_DBG("prio %d iface %p pkt %p len %zu", net_pkt_priority(pkt),
 		iface, pkt, net_pkt_get_len(pkt));
@@ -397,15 +424,27 @@ static inline void l3_init(void)
 
 	net_route_init();
 
+	NET_DBG("Network L3 init done");
+}
+
+static inline int services_init(void)
+{
+	int status;
+
+	status = net_dhcpv4_init();
+	if (status) {
+		return status;
+	}
+
 	dns_init_resolver();
 
-	NET_DBG("Network L3 init done");
+	net_shell_init();
+
+	return status;
 }
 
 static int net_init(struct device *unused)
 {
-	int status = 0;
-
 	net_hostname_init();
 
 	NET_DBG("Priority %d", CONFIG_NET_INIT_PRIO);
@@ -420,16 +459,7 @@ static int net_init(struct device *unused)
 
 	init_rx_queues();
 
-#if CONFIG_NET_DHCPV4
-	status = net_dhcpv4_init();
-	if (status) {
-		return status;
-	}
-#endif
-
-	net_shell_init();
-
-	return status;
+	return services_init();
 }
 
 SYS_INIT(net_init, POST_KERNEL, CONFIG_NET_INIT_PRIO);

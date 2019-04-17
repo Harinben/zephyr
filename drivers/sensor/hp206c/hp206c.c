@@ -110,11 +110,11 @@ static int hp206c_osr_set(struct device *dev, u16_t osr)
 	u8_t i;
 
 	/* the following code translates OSR values to an index */
-	for (i = 0; i < 6 && BIT(12 - i) != osr; i++) {
+	for (i = 0U; i < 6 && BIT(12 - i) != osr; i++) {
 		;
 	}
 
-	if (i == 6) {
+	if (i == 6U) {
 		return -ENOTSUP;
 	}
 

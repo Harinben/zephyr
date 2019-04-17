@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
 /* SoC level DTS fixup file */
 
 #define DT_NUM_IRQ_PRIO_BITS	        DT_ARM_V6M_NVIC_E000E100_ARM_NUM_IRQ_PRIORITY_BITS
@@ -126,4 +128,5 @@
 #define DT_USB_NUM_BIDIR_ENDPOINTS		DT_ST_STM32_USB_40005C00_NUM_BIDIR_ENDPOINTS
 #define DT_USB_RAM_SIZE			DT_ST_STM32_USB_40005C00_RAM_SIZE
 
+#define DT_WDT_0_NAME                   DT_ST_STM32_WATCHDOG_0_LABEL
 /* End of SoC Level DTS fixup file */

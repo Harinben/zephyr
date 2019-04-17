@@ -138,7 +138,7 @@ static int usart_sam_poll_in(struct device *dev, unsigned char *c)
 	return 0;
 }
 
-static unsigned char usart_sam_poll_out(struct device *dev, unsigned char c)
+static void usart_sam_poll_out(struct device *dev, unsigned char c)
 {
 	Usart *const usart = DEV_CFG(dev)->regs;
 
@@ -149,7 +149,6 @@ static unsigned char usart_sam_poll_out(struct device *dev, unsigned char c)
 
 	/* send a character */
 	usart->US_THR = (u32_t)c;
-	return c;
 }
 
 static int usart_sam_err_check(struct device *dev)
@@ -179,10 +178,10 @@ static int baudrate_set(Usart *const usart, u32_t baudrate,
 
 	__ASSERT(baudrate,
 		 "baud rate has to be bigger than 0");
-	__ASSERT(mck_freq_hz/16 >= baudrate,
+	__ASSERT(mck_freq_hz/16U >= baudrate,
 		 "MCK frequency is too small to set required baud rate");
 
-	divisor = mck_freq_hz / 16 / baudrate;
+	divisor = mck_freq_hz / 16U / baudrate;
 
 	if (divisor > 0xFFFF) {
 		return -EINVAL;
@@ -297,8 +296,8 @@ static int usart_sam_irq_is_pending(struct device *dev)
 {
 	volatile Usart * const usart = DEV_CFG(dev)->regs;
 
-	return    ((usart->US_CSR & US_CSR_TXRDY)
-		| (usart->US_CSR & US_CSR_RXRDY));
+	return (usart->US_IMR & (US_IMR_TXRDY | US_IMR_RXRDY)) &
+		(usart->US_CSR & (US_CSR_TXRDY | US_CSR_RXRDY));
 }
 
 static int usart_sam_irq_update(struct device *dev)

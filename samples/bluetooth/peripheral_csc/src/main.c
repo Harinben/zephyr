@@ -268,10 +268,10 @@ static void measurement_nfy(struct bt_conn *conn, u32_t cwr, u16_t lwet,
 	u8_t buf[sizeof(*nfy) +
 		    (cwr ? sizeof(struct wheel_rev_data_nfy) : 0) +
 		    (ccr ? sizeof(struct crank_rev_data_nfy) : 0)];
-	u16_t len = 0;
+	u16_t len = 0U;
 
 	nfy = (void *) buf;
-	nfy->flags = 0;
+	nfy->flags = 0U;
 
 	/* Send Wheel Revolution data is present */
 	if (cwr) {
@@ -312,13 +312,13 @@ static void csc_simulation(void)
 	/* Measurements don't have to be updated every second */
 	if (!(i % 2)) {
 		lwet += 1050 + rand % 50;
-		cwr += 2;
+		cwr += 2U;
 		nfy_wheel = true;
 	}
 
 	if (!(i % 3)) {
 		lcet += 1000 + rand % 50;
-		ccr += 1;
+		ccr += 1U;
 		nfy_crank = true;
 	}
 
@@ -336,9 +336,9 @@ static void csc_simulation(void)
 	 * every 64 seconds.
 	 */
 	if (!(i % 64)) {
-		lcet = 0;
-		lwet = 0;
-		i = 0;
+		lcet = 0U;
+		lwet = 0U;
+		i = 0U;
 	}
 
 	i++;

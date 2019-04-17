@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_test
-#define NET_LOG_LEVEL CONFIG_NET_IPV6_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_test, CONFIG_NET_IPV6_LOG_LEVEL);
 
 #include <zephyr/types.h>
 #include <stddef.h>
@@ -22,6 +22,7 @@
 #include <net/net_core.h>
 #include <net/net_pkt.h>
 #include <net/net_ip.h>
+#include <net/dummy.h>
 
 #define NET_LOG_ENABLED 1
 #include "net_private.h"
@@ -136,16 +137,15 @@ static void net_test_iface_init(struct net_if *iface)
 	net_if_set_link_addr(iface, mac, 6, NET_LINK_ETHERNET);
 }
 
-static int tester_send(struct net_if *iface, struct net_pkt *pkt)
+static int tester_send(struct device *dev, struct net_pkt *pkt)
 {
-	net_pkt_unref(pkt);
 	return 0;
 }
 
 struct net_test_context net_test_context_data;
 
-static struct net_if_api net_test_if_api = {
-	.init = net_test_iface_init,
+static struct dummy_api net_test_if_api = {
+	.iface_api.init = net_test_iface_init,
 	.send = tester_send,
 };
 
@@ -482,8 +482,8 @@ static void test_ipv4_addresses(void)
 
 	iface = NULL;
 
-	iface1 = net_if_get_by_index(0);
-	iface2 = net_if_get_by_index(1);
+	iface1 = net_if_get_by_index(1);
+	iface2 = net_if_get_by_index(2);
 
 	ifmaddr1 = net_if_ipv4_maddr_lookup(&maddr4a, &iface);
 	zassert_not_null(ifmaddr1, "IPv4 multicast address lookup failed");

@@ -37,12 +37,15 @@
 		gpio-6 = &gpio6;
 		led0 = &red_led;
 		mu-b = &mub;
+		epit-1 = &epit1;
+		epit-2 = &epit2;
 	};
 
 	chosen {
 		zephyr,flash = &flash;
 		zephyr,sram = &tcmu;
 		zephyr,console = &uart5;
+		zephyr,shell-uart = &uart5;
 	};
 
 	leds {
@@ -73,5 +76,13 @@
 };
 
 &mub {
+	status = "ok";
+};
+
+&epit1 {
+	status = "ok";
+};
+
+&epit2 {
 	status = "ok";
 };

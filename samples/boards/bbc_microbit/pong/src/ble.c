@@ -134,7 +134,7 @@ static u8_t notify_func(struct bt_conn *conn,
 
 	if (!data || !len) {
 		printk("Unsubscribed, disconnecting...\n");
-		remote_handle = 0;
+		remote_handle = 0U;
 		if (default_conn) {
 			bt_conn_disconnect(default_conn,
 					   BT_HCI_ERR_REMOTE_USER_TERM_CONN);
@@ -245,7 +245,7 @@ static void connected(struct bt_conn *conn, u8_t err)
 	bt_conn_get_info(conn, &info);
 	initiator = (info.role == BT_CONN_ROLE_MASTER);
 	remote_ready = false;
-	remote_handle = 0;
+	remote_handle = 0U;
 
 	printk("Connected\n");
 	ble_state = BLE_CONNECTED;
@@ -262,7 +262,7 @@ static void disconnected(struct bt_conn *conn, u8_t reason)
 		default_conn = NULL;
 	}
 
-	remote_handle = 0;
+	remote_handle = 0U;
 
 	if (ble_state == BLE_CONNECTED) {
 		ble_state = BLE_DISCONNECTED;
@@ -323,12 +323,12 @@ void ble_cancel_connect(void)
 
 static bool pong_uuid_match(const u8_t *data, u8_t len)
 {
-	while (len >= 16) {
+	while (len >= 16U) {
 		if (!memcmp(data, pong_svc_uuid.val, 16)) {
 			return true;
 		}
 
-		len -= 16;
+		len -= 16U;
 		data += 16;
 	}
 
@@ -365,7 +365,7 @@ static void device_found(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
 		u8_t type;
 
 		/* Check for early termination */
-		if (len == 0) {
+		if (len == 0U) {
 			return;
 		}
 

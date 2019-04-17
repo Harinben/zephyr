@@ -27,9 +27,9 @@ LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 
 #undef ASSERT_ON_ERROR
 #define ASSERT_ON_ERROR(ret, e) __ASSERT(ret >= 0, e)
-#define DEVICE_ERROR	 ("See \"DEVICE ERRORS CODES\" in SimpleLink errors.h")
-#define WLAN_ERROR	 ("See \"WLAN ERRORS CODES\" in SimpleLink errors.h")
-#define NETAPP_ERROR	 ("See \"NETAPP ERRORS CODES\" in SimpleLink errors.h")
+#define DEVICE_ERROR	 "See \"DEVICE ERRORS CODES\" in SimpleLink errors.h"
+#define WLAN_ERROR	 "See \"WLAN ERRORS CODES\" in SimpleLink errors.h"
+#define NETAPP_ERROR	 "See \"NETAPP ERRORS CODES\" in SimpleLink errors.h"
 
 #define CHANNEL_MASK_ALL	    (0x1FFF)
 #define RSSI_TH_MAX		    (-95)
@@ -71,7 +71,7 @@ static s32_t configure_simplelink(void)
 	s32_t retval = -1;
 	s32_t mode = -1;
 #if !defined(CONFIG_NET_IPV6)
-	u32_t if_bitmap = 0;
+	u32_t if_bitmap = 0U;
 #endif
 	SlWlanScanParamCommand_t scan_default = { 0 };
 	SlWlanRxFilterOperationCommandBuff_t rx_filterid_mask = { { 0 } };
@@ -132,7 +132,7 @@ static s32_t configure_simplelink(void)
 
 	/* Configure scan parameters to default */
 	scan_default.ChannelsMask = CHANNEL_MASK_ALL;
-	scan_default.RssiThershold = RSSI_TH_MAX;
+	scan_default.RssiThreshold = RSSI_TH_MAX;
 
 	retval = sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
 			    SL_WLAN_GENERAL_PARAM_OPT_SCAN_PARAMS,
@@ -145,7 +145,7 @@ static s32_t configure_simplelink(void)
 	ASSERT_ON_ERROR(retval, WLAN_ERROR);
 
 	/* Set TX power lvl to max */
-	power = 0;
+	power = 0U;
 	retval = sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
 			    SL_WLAN_GENERAL_PARAM_OPT_STA_TX_POWER, 1,
 			    (u8_t *)&power);
@@ -345,7 +345,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *netapp_event)
 	case SL_DEVICE_EVENT_DROPPED_NETAPP_IPACQUIRED_V6:
 		SET_STATUS_BIT(nwp.status, STATUS_BIT_IPV6_ACQUIRED);
 
-		for (i = 0; i < 4; i++) {
+		for (i = 0U; i < 4; i++) {
 			sl_conn.ipv6_addr[i] =
 			  netapp_event->Data.IpAcquiredV6.Ip[i];
 		}
@@ -488,7 +488,7 @@ void SimpleLinkNetAppRequestMemFreeEventHandler(u8_t *buffer)
  * - Whether network hidden or visible
  * - Other types of security
  */
-void _simplelink_get_scan_result(int index,
+void z_simplelink_get_scan_result(int index,
 				 struct wifi_scan_result *scan_result)
 {
 	SlWlanNetworkEntry_t *net_entry;
@@ -515,7 +515,7 @@ void _simplelink_get_scan_result(int index,
 	scan_result->rssi = net_entry->Rssi;
 }
 
-int _simplelink_start_scan(void)
+int z_simplelink_start_scan(void)
 {
 	s32_t ret;
 
@@ -533,16 +533,16 @@ int _simplelink_start_scan(void)
 	return ret;
 }
 
-void _simplelink_get_mac(unsigned char *mac)
+void z_simplelink_get_mac(unsigned char *mac)
 {
 	u16_t mac_len = SL_MAC_ADDR_LEN;
-	u16_t config_opt = 0;
+	u16_t config_opt = 0U;
 
 	sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, &config_opt,
 		     &mac_len, (u8_t *)mac);
 }
 
-int _simplelink_connect(struct wifi_connect_req_params *params)
+int z_simplelink_connect(struct wifi_connect_req_params *params)
 {
 	SlWlanSecParams_t secParams = { 0 };
 	long lretval;
@@ -565,7 +565,7 @@ int _simplelink_connect(struct wifi_connect_req_params *params)
 	return lretval;
 }
 
-int _simplelink_disconnect(void)
+int z_simplelink_disconnect(void)
 {
 	long lretval;
 
@@ -575,7 +575,7 @@ int _simplelink_disconnect(void)
 	return lretval;
 }
 
-int _simplelink_init(simplelink_wifi_cb_t wifi_cb)
+int z_simplelink_init(simplelink_wifi_cb_t wifi_cb)
 {
 	int retval;
 
@@ -585,7 +585,7 @@ int _simplelink_init(simplelink_wifi_cb_t wifi_cb)
 	CC3220SF_LAUNCHXL_init();
 
 	/* Configure SimpleLink NWP: */
-	nwp.status = 0;
+	nwp.status = 0U;
 	nwp.role = ROLE_RESERVED;
 	nwp.cb = wifi_cb;
 

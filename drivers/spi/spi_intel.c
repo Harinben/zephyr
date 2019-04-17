@@ -85,7 +85,7 @@ static void push_data(struct device *dev)
 	u32_t status;
 
 	while ((status = read_sssr(spi->regs)) & INTEL_SPI_SSSR_TNF) {
-		u32_t data = 0;
+		u32_t data = 0U;
 
 		if (status & INTEL_SPI_SSSR_RFS) {
 			break;
@@ -96,6 +96,7 @@ static void push_data(struct device *dev)
 			case 1:
 				data = UNALIGNED_GET((u8_t *)
 						     (spi->ctx.tx_buf));
+				break;
 			case 2:
 				data = UNALIGNED_GET((u16_t *)
 						     (spi->ctx.tx_buf));
@@ -255,7 +256,7 @@ static int spi_intel_release(struct device *dev,
 void spi_intel_isr(struct device *dev)
 {
 	struct spi_intel_data *spi = dev->driver_data;
-	u32_t error = 0;
+	u32_t error = 0U;
 	u32_t status;
 
 	LOG_DBG("%p", dev);
@@ -264,7 +265,7 @@ void spi_intel_isr(struct device *dev)
 	if (status & INTEL_SPI_SSSR_ROR) {
 		/* Unrecoverable error, ack it */
 		clear_bit_sssr_ror(spi->regs);
-		error = 1;
+		error = 1U;
 		goto out;
 	}
 
@@ -389,20 +390,25 @@ static int spi_intel_resume_from_suspend(struct device *dev)
 * the *context may include IN data or/and OUT data
 */
 static int spi_intel_device_ctrl(struct device *dev, u32_t ctrl_command,
-				 void *context)
+				 void *context, device_pm_cb cb, void *arg)
 {
+	int ret = 0;
+
 	if (ctrl_command == DEVICE_PM_SET_POWER_STATE) {
 		if (*((u32_t *)context) == DEVICE_PM_SUSPEND_STATE) {
-			return spi_intel_suspend(dev);
+			ret = spi_intel_suspend(dev);
 		} else if (*((u32_t *)context) == DEVICE_PM_ACTIVE_STATE) {
-			return spi_intel_resume_from_suspend(dev);
+			ret = spi_intel_resume_from_suspend(dev);
 		}
 	} else if (ctrl_command == DEVICE_PM_GET_POWER_STATE) {
 		*((u32_t *)context) = spi_intel_get_power_state(dev);
-		return 0;
 	}
 
-	return 0;
+	if (cb) {
+		cb(dev, ret, context, arg);
+	}
+
+	return ret;
 }
 #else
 #define spi_intel_set_power_state(...)

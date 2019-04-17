@@ -55,27 +55,27 @@ static void usb_sam0_ep_isr(u8_t ep)
 
 	endpoint->EPINTFLAG.reg = intflag;
 
-	if ((intflag & USB_DEVICE_EPINTFLAG_RXSTP) != 0) {
+	if ((intflag & USB_DEVICE_EPINTFLAG_RXSTP) != 0U) {
 		/* Setup */
 		data->ep_cb[0][ep](ep, USB_DC_EP_SETUP);
 	}
 
-	if ((intflag & USB_DEVICE_EPINTFLAG_TRCPT0) != 0) {
+	if ((intflag & USB_DEVICE_EPINTFLAG_TRCPT0) != 0U) {
 		/* Out (to device) data received */
 		data->ep_cb[0][ep](ep, USB_DC_EP_DATA_OUT);
 	}
 
-	if ((intflag & USB_DEVICE_EPINTFLAG_TRCPT1) != 0) {
+	if ((intflag & USB_DEVICE_EPINTFLAG_TRCPT1) != 0U) {
 		/* In (to host) transmit complete */
 		data->ep_cb[1][ep](ep | USB_SAM0_IN_EP, USB_DC_EP_DATA_IN);
 
-		if (data->addr != 0) {
+		if (data->addr != 0U) {
 			/* Commit the pending address update.  This
 			 * must be done after the ack to the host
 			 * completes else the ack will get dropped.
 			 */
 			regs->DADD.reg = data->addr;
-			data->addr = 0;
+			data->addr = 0U;
 		}
 	}
 }
@@ -92,7 +92,7 @@ static void usb_sam0_isr(void)
 	/* Acknowledge all interrupts */
 	regs->INTFLAG.reg = intflag;
 
-	if ((intflag & USB_DEVICE_INTFLAG_EORST) != 0) {
+	if ((intflag & USB_DEVICE_INTFLAG_EORST) != 0U) {
 		UsbDeviceEndpoint *endpoint = &regs->DeviceEndpoint[0];
 
 		/* The device clears some of the configuration of EP0
@@ -106,9 +106,9 @@ static void usb_sam0_isr(void)
 	}
 
 	/* Dispatch the endpoint interrupts */
-	for (ep = 0; epint != 0; epint >>= 1) {
+	for (ep = 0U; epint != 0U; epint >>= 1) {
 		/* Scan bit-by-bit as the Cortex-M0 doesn't have ffs */
-		if ((epint & 1) != 0) {
+		if ((epint & 1) != 0U) {
 			usb_sam0_ep_isr(ep);
 		}
 		ep++;
@@ -138,7 +138,7 @@ static void usb_sam0_load_padcal(void)
 		     ((1 << NVM_USB_PAD_TRANSN_SIZE) - 1);
 
 	if (pad_transn == 0x1F) {
-		pad_transn = 5;
+		pad_transn = 5U;
 	}
 
 	regs->PADCAL.bit.TRANSN = pad_transn;
@@ -149,7 +149,7 @@ static void usb_sam0_load_padcal(void)
 		     ((1 << NVM_USB_PAD_TRANSP_SIZE) - 1);
 
 	if (pad_transp == 0x1F) {
-		pad_transp = 29;
+		pad_transp = 29U;
 	}
 
 	regs->PADCAL.bit.TRANSP = pad_transp;
@@ -160,7 +160,7 @@ static void usb_sam0_load_padcal(void)
 		   ((1 << NVM_USB_PAD_TRIM_SIZE) - 1);
 
 	if (pad_trim == 0x7) {
-		pad_trim = 3;
+		pad_trim = 3U;
 	}
 
 	regs->PADCAL.bit.TRIM = pad_trim;
@@ -480,7 +480,7 @@ int usb_dc_ep_read_ex(u8_t ep, u8_t *buf, u32_t max_data_len,
 	 * also marks the OUT buffer as freed.
 	 */
 	if (buf == NULL) {
-		data->out_at = 0;
+		data->out_at = 0U;
 
 		if (read_bytes != NULL) {
 			*read_bytes = bytes;
@@ -490,7 +490,7 @@ int usb_dc_ep_read_ex(u8_t ep, u8_t *buf, u32_t max_data_len,
 	}
 
 	remain = bytes - data->out_at;
-	take = min(max_data_len, remain);
+	take = MIN(max_data_len, remain);
 	memcpy(buf, (u8_t *)addr + data->out_at, take);
 
 	if (read_bytes != NULL) {
@@ -500,7 +500,7 @@ int usb_dc_ep_read_ex(u8_t ep, u8_t *buf, u32_t max_data_len,
 	if (take == remain) {
 		if (!wait) {
 			endpoint->EPSTATUSCLR.bit.BK0RDY = 1;
-			data->out_at = 0;
+			data->out_at = 0U;
 		}
 	} else {
 		data->out_at += take;
@@ -528,7 +528,7 @@ int usb_dc_ep_read_continue(u8_t ep)
 	UsbDeviceEndpoint *endpoint = &regs->DeviceEndpoint[ep_num];
 
 	endpoint->EPSTATUSCLR.bit.BK0RDY = 1;
-	data->out_at = 0;
+	data->out_at = 0U;
 
 	return 0;
 }

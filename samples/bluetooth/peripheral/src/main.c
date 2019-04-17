@@ -78,8 +78,8 @@ static void vnd_ccc_cfg_changed(const struct bt_gatt_attr *attr, u16_t value)
 static void indicate_cb(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			u8_t err)
 {
-	printk("Indication %s\n", err != 0 ? "fail" : "success");
-	indicating = 0;
+	printk("Indication %s\n", err != 0U ? "fail" : "success");
+	indicating = 0U;
 }
 
 #define MAX_DATA 74
@@ -173,7 +173,7 @@ static ssize_t write_without_rsp_vnd(struct bt_conn *conn,
 	/* Write request received. Reject it since this char only accepts
 	 * Write Commands.
 	 */
-	if (!(flags | BT_GATT_WRITE_FLAG_CMD)) {
+	if (!(flags & BT_GATT_WRITE_FLAG_CMD)) {
 		return BT_GATT_ERR(BT_ATT_ERR_WRITE_REQ_REJECTED);
 	}
 
@@ -339,7 +339,7 @@ void main(void)
 			ind_params.len = sizeof(indicating);
 
 			if (bt_gatt_indicate(NULL, &ind_params) == 0) {
-				indicating = 1;
+				indicating = 1U;
 			}
 		}
 	}

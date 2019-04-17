@@ -74,7 +74,7 @@ static int gpio_gecko_configure(struct device *dev,
 	GPIO_P_TypeDef *gpio_base = config->gpio_base;
 	GPIO_Port_TypeDef gpio_index = config->gpio_index;
 	GPIO_Mode_TypeDef mode;
-	unsigned int out = 0;
+	unsigned int out = 0U;
 
 	/* Check for an invalid pin configuration */
 	if ((flags & GPIO_INT) && (flags & GPIO_DIR_OUT)) {
@@ -94,7 +94,7 @@ static int gpio_gecko_configure(struct device *dev,
 	if ((flags & GPIO_DIR_MASK) == GPIO_DIR_IN) {
 		if ((flags & GPIO_PUD_MASK) == GPIO_PUD_PULL_UP) {
 			mode = gpioModeInputPull;
-			out = 1; /* pull-up*/
+			out = 1U; /* pull-up*/
 		} else if ((flags & GPIO_PUD_MASK) == GPIO_PUD_PULL_DOWN) {
 			mode = gpioModeInputPull;
 			/* out = 0 means pull-down*/
@@ -192,9 +192,7 @@ static int gpio_gecko_manage_callback(struct device *dev,
 {
 	struct gpio_gecko_data *data = dev->driver_data;
 
-	_gpio_manage_callback(&data->callbacks, callback, set);
-
-	return 0;
+	return gpio_manage_callback(&data->callbacks, callback, set);
 }
 
 static int gpio_gecko_enable_callback(struct device *dev,
@@ -246,7 +244,7 @@ static void gpio_gecko_common_isr(void *arg)
 		enabled_int = int_status & port_data->pin_callback_enables;
 		int_status &= ~enabled_int;
 
-		_gpio_fire_callbacks(&port_data->callbacks, port_dev,
+		gpio_fire_callbacks(&port_data->callbacks, port_dev,
 				     enabled_int);
 	}
 	/* Clear the pending interrupts */
@@ -285,6 +283,24 @@ DEVICE_AND_API_INIT(gpio_gecko_common, DT_GPIO_GECKO_COMMON_NAME,
 
 static int gpio_gecko_common_init(struct device *dev)
 {
+	/* Serial Wire Output (SWO) pin is controlled by GPIO module, configure
+	 * if enabled.
+	 */
+#if defined(DT_GPIO_GECKO_SWO_LOCATION)
+	struct soc_gpio_pin pin_swo = PIN_SWO;
+
+#if defined(_GPIO_ROUTEPEN_MASK)
+	/* Enable Serial wire output pin */
+	GPIO->ROUTEPEN |= GPIO_ROUTEPEN_SWVPEN;
+	/* Set SWO location */
+	GPIO->ROUTELOC0 =
+		DT_GPIO_GECKO_SWO_LOCATION << _GPIO_ROUTELOC0_SWVLOC_SHIFT;
+#else
+	GPIO->ROUTE = GPIO_ROUTE_SWOPEN | (DT_GPIO_GECKO_SWO_LOCATION << 8);
+#endif
+	soc_gpio_configure(&pin_swo);
+#endif /* defined(DT_GPIO_GECKO_SWO_LOCATION) */
+
 	gpio_gecko_common_data.count = 0;
 	IRQ_CONNECT(GPIO_EVEN_IRQn, DT_GPIO_GECKO_COMMON_EVEN_PRI,
 		    gpio_gecko_common_isr, DEVICE_GET(gpio_gecko_common), 0);

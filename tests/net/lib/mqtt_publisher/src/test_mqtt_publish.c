@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_test
-#define NET_LOG_LEVEL LOG_LEVEL_WRN
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_test, LOG_LEVEL_WRN);
 
 #include <net/mqtt.h>
 #include <net/socket.h>
@@ -192,8 +192,8 @@ static int publish(enum mqtt_qos qos)
 	param.message.payload.len =
 			strlen(param.message.payload.data);
 	param.message_id = sys_rand32_get();
-	param.dup_flag = 0;
-	param.retain_flag = 0;
+	param.dup_flag = 0U;
+	param.retain_flag = 0U;
 
 	return mqtt_publish(&client_ctx, &param);
 }

@@ -39,7 +39,7 @@ static int bmg160_anymotion_set(struct device *dev,
 				sensor_trigger_handler_t handler)
 {
 	struct bmg160_device_data *bmg160 = dev->driver_data;
-	u8_t anymotion_en = 0;
+	u8_t anymotion_en = 0U;
 
 	if (handler) {
 		anymotion_en = BMG160_ANY_EN_X |
@@ -83,10 +83,10 @@ int bmg160_slope_config(struct device *dev, enum sensor_attribute attr,
 
 		any_th_dps = sensor_rad_to_degrees(val);
 		range_dps = BMG160_SCALE_TO_RANGE(bmg160->scale);
-		any_th_reg_val = any_th_dps * 2000 / range_dps;
+		any_th_reg_val = any_th_dps * 2000U / range_dps;
 
 		/* the maximum slope depends on selected range */
-		if (any_th_dps > range_dps / 16) {
+		if (any_th_dps > range_dps / 16U) {
 			return -ENOTSUP;
 		}
 

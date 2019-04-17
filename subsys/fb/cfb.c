@@ -32,10 +32,10 @@ struct char_framebuffer {
 	enum display_screen_info screen_info;
 
 	/** Resolution of a framebuffer in pixels in X direction */
-	u8_t x_res;
+	u16_t x_res;
 
 	/** Resolution of a framebuffer in pixels in Y direction */
-	u8_t y_res;
+	u16_t y_res;
 
 	/** Number of pixels per tile, typically 8 */
 	u8_t ppt;
@@ -60,7 +60,7 @@ static inline u8_t *get_glyph_ptr(const struct cfb_font *fptr, char c)
 	if (fptr->caps & CFB_FONT_MONO_VPACKED) {
 		return (u8_t *)fptr->data +
 		       (c - fptr->first_char) *
-		       (fptr->width * fptr->height / 8);
+		       (fptr->width * fptr->height / 8U);
 	}
 
 	return NULL;
@@ -86,16 +86,16 @@ static u8_t draw_char_vtmono(const struct char_framebuffer *fb,
 	}
 
 	for (size_t g_x = 0; g_x < fptr->width; g_x++) {
-		u32_t y_segment = y / 8;
+		u32_t y_segment = y / 8U;
 
-		for (size_t g_y = 0; g_y < fptr->height / 8; g_y++) {
+		for (size_t g_y = 0; g_y < fptr->height / 8U; g_y++) {
 			u32_t fb_y = (y_segment + g_y) * fb->x_res;
 
 			if ((fb_y + x + g_x) >= fb->size) {
 				return 0;
 			}
 			fb->buf[fb_y + x + g_x] =
-				glyph_ptr[g_x * (fptr->height / 8) + g_y];
+				glyph_ptr[g_x * (fptr->height / 8U) + g_y];
 		}
 
 	}
@@ -120,7 +120,7 @@ int cfb_print(struct device *dev, char *str, u16_t x, u16_t y)
 	if ((fb->screen_info & SCREEN_INFO_MONO_VTILED) && !(y % 8)) {
 		for (size_t i = 0; i < strlen(str); i++) {
 			if (x + fptr->width > fb->x_res) {
-				x = 0;
+				x = 0U;
 				y += fptr->height;
 			}
 			x += fb->kerning + draw_char_vtmono(fb, str[i], x, y);
@@ -139,7 +139,7 @@ static int cfb_reverse_bytes(const struct char_framebuffer *fb)
 		return -1;
 	}
 
-	for (size_t i = 0; i < fb->x_res * fb->y_res / 8; i++) {
+	for (size_t i = 0; i < fb->x_res * fb->y_res / 8U; i++) {
 		fb->buf[i] = (fb->buf[i] & 0xf0) >> 4 |
 			      (fb->buf[i] & 0x0f) << 4;
 		fb->buf[i] = (fb->buf[i] & 0xcc) >> 2 |
@@ -153,7 +153,7 @@ static int cfb_reverse_bytes(const struct char_framebuffer *fb)
 
 static int cfb_invert(const struct char_framebuffer *fb)
 {
-	for (size_t i = 0; i < fb->x_res * fb->y_res / 8; i++) {
+	for (size_t i = 0; i < fb->x_res * fb->y_res / 8U; i++) {
 		fb->buf[i] = ~fb->buf[i];
 	}
 
@@ -162,7 +162,6 @@ static int cfb_invert(const struct char_framebuffer *fb)
 
 int cfb_framebuffer_clear(struct device *dev, bool clear_display)
 {
-	const struct display_driver_api *api = dev->driver_api;
 	const struct char_framebuffer *fb = &char_fb;
 	struct display_buffer_descriptor desc;
 
@@ -171,16 +170,24 @@ int cfb_framebuffer_clear(struct device *dev, bool clear_display)
 	}
 
 	desc.buf_size = fb->size;
-	desc.width = 0;
-	desc.height = 0;
-	desc.pitch = 0;
+	desc.width = fb->x_res;
+	desc.height = fb->y_res;
+	desc.pitch = fb->x_res;
 	memset(fb->buf, 0, fb->size);
 
-	if (clear_display && (fb->screen_info & SCREEN_INFO_EPD)) {
-		api->set_contrast(dev, 1);
-		api->write(dev, 0, 0, &desc, fb->buf);
-		api->set_contrast(dev, 0);
+	return 0;
+}
+
+
+int cfb_framebuffer_invert(struct device *dev)
+{
+	struct char_framebuffer *fb = &char_fb;
+
+	if (!fb || !fb->buf) {
+		return -1;
 	}
+
+	fb->inverted = !fb->inverted;
 
 	return 0;
 }
@@ -196,9 +203,9 @@ int cfb_framebuffer_finalize(struct device *dev)
 	}
 
 	desc.buf_size = fb->size;
-	desc.width = 0;
-	desc.height = 0;
-	desc.pitch = 0;
+	desc.width = fb->x_res;
+	desc.height = fb->y_res;
+	desc.pitch = fb->x_res;
 
 	if (!(fb->pixel_format & PIXEL_FORMAT_MONO10) != !(fb->inverted)) {
 		cfb_invert(fb);
@@ -269,6 +276,13 @@ int cfb_get_font_size(struct device *dev, u8_t idx, u8_t *width, u8_t *height)
 	return 0;
 }
 
+int cfb_get_numof_fonts(struct device *dev)
+{
+	const struct char_framebuffer *fb = &char_fb;
+
+	return fb->numof_fonts;
+}
+
 int cfb_framebuffer_init(struct device *dev)
 {
 	const struct display_driver_api *api = dev->driver_api;
@@ -285,16 +299,16 @@ int cfb_framebuffer_init(struct device *dev)
 
 	fb->x_res = cfg.x_resolution;
 	fb->y_res = cfg.y_resolution;
-	fb->ppt = 8;
+	fb->ppt = 8U;
 	fb->pixel_format = cfg.current_pixel_format;
 	fb->screen_info = cfg.screen_info;
 	fb->buf = NULL;
-	fb->font_idx = 0;
+	fb->font_idx = 0U;
 	fb->kerning = 0;
 	fb->inverted = false;
 
 	fb->fonts = __font_entry_start;
-	fb->font_idx = 0;
+	fb->font_idx = 0U;
 
 	fb->size = fb->x_res * fb->y_res / fb->ppt;
 	fb->buf = k_malloc(fb->size);

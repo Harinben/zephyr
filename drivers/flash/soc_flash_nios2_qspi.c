@@ -87,14 +87,14 @@ static int flash_nios2_qspi_erase(struct device *dev, off_t offset, size_t len)
 	for (i = offset/qspi_dev->sector_size;
 			i < qspi_dev->number_of_sectors; i++) {
 
-		if ((remaining_length <= 0) ||
+		if ((remaining_length <= 0U) ||
 				erase_offset >= (offset + len)) {
 			break;
 		}
 
-		block_offset = 0; /* block offset in byte addressing */
-		offset_in_block = 0; /* offset into current sector to erase */
-		length_to_erase = 0; /* length to erase in current sector */
+		block_offset = 0U; /* block offset in byte addressing */
+		offset_in_block = 0U; /* offset into current sector to erase */
+		length_to_erase = 0U; /* length to erase in current sector */
 
 		/* calculate current sector/block offset in byte addressing */
 		block_offset = erase_offset & ~(qspi_dev->sector_size - 1);
@@ -105,7 +105,7 @@ static int flash_nios2_qspi_erase(struct device *dev, off_t offset, size_t len)
 		}
 
 		/* calculate the byte size of data to be written in a sector */
-		length_to_erase = min(qspi_dev->sector_size - offset_in_block,
+		length_to_erase = MIN(qspi_dev->sector_size - offset_in_block,
 							remaining_length);
 
 		/* Erase sector */
@@ -161,8 +161,8 @@ static int flash_nios2_qspi_write_block(struct device *dev, int block_offset,
 {
 	struct flash_nios2_qspi_config *flash_cfg = dev->driver_data;
 	alt_qspi_controller2_dev *qspi_dev = &flash_cfg->qspi_dev;
-	u32_t buffer_offset = 0; /* offset into data buffer to get write data */
-	u32_t remaining_length = len; /* length left to write */
+	u32_t buffer_offset = 0U; /* offset into data buffer to get write data */
+	s32_t remaining_length = len; /* length left to write */
 	u32_t write_offset = mem_offset; /* offset into flash to write too */
 	u32_t word_to_write, padding, bytes_to_copy;
 	u32_t flag_status;
@@ -173,7 +173,7 @@ static int flash_nios2_qspi_write_block(struct device *dev, int block_offset,
 		word_to_write = NIOS2_QSPI_BLANK_WORD;
 
 		/* bytes to pad the next word that is written */
-		padding = 0;
+		padding = 0U;
 
 		/* number of bytes from source to copy */
 		bytes_to_copy = NIOS2_WRITE_BLOCK_SIZE;
@@ -260,7 +260,7 @@ static int flash_nios2_qspi_write(struct device *dev, off_t offset,
 	alt_qspi_controller2_dev *qspi_dev = &flash_cfg->qspi_dev;
 	u32_t block_offset, offset_in_block, length_to_write;
 	u32_t write_offset = offset; /* address of next byte to write */
-	u32_t buffer_offset = 0; /* offset into source buffer */
+	u32_t buffer_offset = 0U; /* offset into source buffer */
 	u32_t remaining_length = len; /* length of data left to be written */
 	s32_t rc = 0, i;
 
@@ -280,13 +280,13 @@ static int flash_nios2_qspi_write(struct device *dev, off_t offset,
 	for (i = offset/qspi_dev->sector_size;
 			i < qspi_dev->number_of_sectors; i++) {
 
-		if (remaining_length <= 0) {
+		if (remaining_length <= 0U) {
 			break;
 		}
 
-		block_offset = 0; /* block offset in byte addressing */
-		offset_in_block = 0; /* offset into current sector to write */
-		length_to_write = 0; /* length to write to current sector */
+		block_offset = 0U; /* block offset in byte addressing */
+		offset_in_block = 0U; /* offset into current sector to write */
+		length_to_write = 0U; /* length to write to current sector */
 
 		/* calculate current sector/block offset in byte addressing */
 		block_offset = write_offset & ~(qspi_dev->sector_size - 1);
@@ -297,7 +297,7 @@ static int flash_nios2_qspi_write(struct device *dev, off_t offset,
 		}
 
 		/* calculate the byte size of data to be written in a sector */
-		length_to_write = min(qspi_dev->sector_size - offset_in_block,
+		length_to_write = MIN(qspi_dev->sector_size - offset_in_block,
 							remaining_length);
 
 		rc = flash_nios2_qspi_write_block(dev,
@@ -324,7 +324,7 @@ static int flash_nios2_qspi_read(struct device *dev, off_t offset,
 {
 	struct flash_nios2_qspi_config *flash_cfg = dev->driver_data;
 	alt_qspi_controller2_dev *qspi_dev = &flash_cfg->qspi_dev;
-	u32_t buffer_offset = 0; /* offset into data buffer to get read data */
+	u32_t buffer_offset = 0U; /* offset into data buffer to get read data */
 	u32_t remaining_length = len; /* length left to read */
 	u32_t read_offset = offset; /* offset into flash to read from */
 	u32_t word_to_read, bytes_to_copy;

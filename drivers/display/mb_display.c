@@ -146,7 +146,7 @@ static void start_image(struct mb_display *disp, const struct mb_image *img)
 	int row, col;
 
 	for (row = 0; row < DISPLAY_ROWS; row++) {
-		disp->row[row] = 0;
+		disp->row[row] = 0U;
 
 		for (col = 0; col < DISPLAY_COLS; col++) {
 			if (GET_PIXEL(img, map[row][col].x, map[row][col].y)) {
@@ -158,7 +158,7 @@ static void start_image(struct mb_display *disp, const struct mb_image *img)
 		disp->row[row] |= BIT(LED_ROW1_GPIO_PIN + row);
 	}
 
-	disp->cur = 0;
+	disp->cur = 0U;
 
 	if (disp->duration == K_FOREVER) {
 		disp->expiry = K_FOREVER;
@@ -173,22 +173,18 @@ static void start_image(struct mb_display *disp, const struct mb_image *img)
 
 static inline void update_pins(struct mb_display *disp, u32_t val)
 {
-	if (IS_ENABLED(CONFIG_MICROBIT_DISPLAY_PIN_GRANULARITY)) {
-		u32_t pin, prev = (disp->cur + 2) % 3;
+	u32_t pin, prev = (disp->cur + 2) % 3;
 
-		/* Disable the previous row */
-		gpio_pin_write(disp->dev, ROW_PIN(prev), 0);
+	/* Disable the previous row */
+	gpio_pin_write(disp->dev, ROW_PIN(prev), 0);
 
-		/* Set the column pins to their correct values */
-		for (pin = LED_COL1_GPIO_PIN; pin <= LED_COL9_GPIO_PIN; pin++) {
-			gpio_pin_write(disp->dev, pin, !!(val & BIT(pin)));
-		}
-
-		/* Enable the new row */
-		gpio_pin_write(disp->dev, ROW_PIN(disp->cur), 1);
-	} else {
-		gpio_port_write(disp->dev, val);
+	/* Set the column pins to their correct values */
+	for (pin = LED_COL1_GPIO_PIN; pin <= LED_COL9_GPIO_PIN; pin++) {
+		gpio_pin_write(disp->dev, pin, !!(val & BIT(pin)));
 	}
+
+	/* Enable the new row */
+	gpio_pin_write(disp->dev, ROW_PIN(disp->cur), 1);
 }
 
 static void reset_display(struct mb_display *disp)
@@ -196,9 +192,9 @@ static void reset_display(struct mb_display *disp)
 	k_timer_stop(&disp->timer);
 
 	disp->str = NULL;
-	disp->cur_img = 0;
+	disp->cur_img = 0U;
 	disp->img = NULL;
-	disp->img_count = 0;
+	disp->img_count = 0U;
 	disp->scroll = SCROLL_OFF;
 }
 
@@ -269,7 +265,7 @@ static void update_scroll(struct mb_display *disp)
 		start_image(disp, &img);
 	} else {
 		if (disp->first) {
-			disp->first = 0;
+			disp->first = 0U;
 		} else {
 			disp->cur_img++;
 		}
@@ -280,8 +276,8 @@ static void update_scroll(struct mb_display *disp)
 				return;
 			}
 
-			disp->cur_img = 0;
-			disp->first = 1;
+			disp->cur_img = 0U;
+			disp->first = 1U;
 		}
 
 		disp->scroll = SCROLL_START;
@@ -299,7 +295,7 @@ static void update_image(struct mb_display *disp)
 			return;
 		}
 
-		disp->cur_img = 0;
+		disp->cur_img = 0U;
 	}
 
 	start_image(disp, current_img(disp));
@@ -312,7 +308,7 @@ static void show_row(struct k_timer *timer)
 	update_pins(disp, disp->row[disp->cur]);
 	disp->cur = (disp->cur + 1) % DISPLAY_ROWS;
 
-	if (disp->cur == 0 && disp->expiry != K_FOREVER &&
+	if (disp->cur == 0U && disp->expiry != K_FOREVER &&
 	    k_uptime_get() > disp->expiry) {
 		if (disp->scroll) {
 			update_scroll(disp);
@@ -330,7 +326,7 @@ static void clear_display(struct k_timer *timer)
 }
 
 static struct mb_display display = {
-	.timer = _K_TIMER_INITIALIZER(display.timer, show_row, clear_display),
+	.timer = Z_TIMER_INITIALIZER(display.timer, show_row, clear_display),
 };
 
 static void start_scroll(struct mb_display *disp, s32_t duration)
@@ -343,8 +339,8 @@ static void start_scroll(struct mb_display *disp, s32_t duration)
 	}
 
 	disp->scroll = SCROLL_START;
-	disp->first = 1;
-	disp->cur_img = 0;
+	disp->first = 1U;
+	disp->cur_img = 0U;
 	start_image(disp, get_font(' '));
 }
 
@@ -366,11 +362,11 @@ void mb_display_image(struct mb_display *disp, u32_t mode, s32_t duration,
 
 	__ASSERT(img && img_count > 0, "Invalid parameters");
 
-	disp->text = 0;
+	disp->text = 0U;
 	disp->img_count = img_count;
 	disp->img = img;
-	disp->img_sep = 0;
-	disp->cur_img = 0;
+	disp->img_sep = 0U;
+	disp->cur_img = 0U;
 	disp->loop = !!(mode & MB_DISPLAY_FLAG_LOOP);
 
 	switch (mode & MODE_MASK) {
@@ -407,9 +403,9 @@ void mb_display_print(struct mb_display *disp, u32_t mode,
 	}
 
 	disp->str = disp->str_buf;
-	disp->text = 1;
-	disp->img_sep = 1;
-	disp->cur_img = 0;
+	disp->text = 1U;
+	disp->img_sep = 1U;
+	disp->cur_img = 0U;
 	disp->loop = !!(mode & MB_DISPLAY_FLAG_LOOP);
 
 	switch (mode & MODE_MASK) {

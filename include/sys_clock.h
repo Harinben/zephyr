@@ -28,7 +28,7 @@ extern "C" {
 
 #ifdef CONFIG_TICKLESS_KERNEL
 extern int _sys_clock_always_on;
-extern void _enable_sys_clock(void);
+extern void z_enable_sys_clock(void);
 #endif
 
 static inline int sys_clock_hw_cycles_per_sec(void)
@@ -62,13 +62,13 @@ static inline int sys_clock_hw_cycles_per_tick(void)
 #endif
 
 /* number of nsec per usec */
-#define NSEC_PER_USEC 1000
+#define NSEC_PER_USEC 1000U
 
 /* number of microseconds per millisecond */
-#define USEC_PER_MSEC 1000
+#define USEC_PER_MSEC 1000U
 
 /* number of milliseconds per second */
-#define MSEC_PER_SEC 1000
+#define MSEC_PER_SEC 1000U
 
 /* number of microseconds per second */
 #define USEC_PER_SEC ((USEC_PER_MSEC) * (MSEC_PER_SEC))
@@ -102,7 +102,7 @@ static inline int sys_clock_hw_cycles_per_tick(void)
 #endif
 #endif
 
-static ALWAYS_INLINE s32_t _ms_to_ticks(s32_t ms)
+static ALWAYS_INLINE s32_t z_ms_to_ticks(s32_t ms)
 {
 #ifdef CONFIG_SYS_CLOCK_EXISTS
 
@@ -125,23 +125,21 @@ static ALWAYS_INLINE s32_t _ms_to_ticks(s32_t ms)
 #endif
 }
 
-static inline s64_t __ticks_to_ms(s64_t ticks)
+static inline u64_t __ticks_to_ms(s64_t ticks)
 {
 #ifdef CONFIG_SYS_CLOCK_EXISTS
 
 #ifdef _NEED_PRECISE_TICK_MS_CONVERSION
 	/* use 64-bit math to keep precision */
-	return (u64_t)ticks * MSEC_PER_SEC / CONFIG_SYS_CLOCK_TICKS_PER_SEC;
+	return (u64_t)ticks * MSEC_PER_SEC / (u64_t)CONFIG_SYS_CLOCK_TICKS_PER_SEC;
 #else
 	/* simple multiplication keeps precision */
-	u32_t ms_per_tick = MSEC_PER_SEC / CONFIG_SYS_CLOCK_TICKS_PER_SEC;
-
-	return (u64_t)ticks * ms_per_tick;
+	return (u64_t)ticks * MSEC_PER_SEC / (u64_t)CONFIG_SYS_CLOCK_TICKS_PER_SEC;
 #endif
 
 #else
 	__ASSERT(ticks == 0, "ticks not zero");
-	return 0;
+	return 0ULL;
 #endif
 }
 
@@ -214,17 +212,6 @@ struct _timeout {
 	s32_t dticks;
 	_timeout_func_t fn;
 };
-
-/*
- * Number of ticks for x seconds. NOTE: With MSEC() or USEC(),
- * since it does an integer division, x must be greater or equal to
- * 1000/CONFIG_SYS_CLOCK_TICKS_PER_SEC to get a non-zero value.
- * You may want to raise CONFIG_SYS_CLOCK_TICKS_PER_SEC depending on
- * your requirements.
- */
-#define SECONDS(x)	((x) * CONFIG_SYS_CLOCK_TICKS_PER_SEC)
-#define MSEC(x)		(SECONDS(x) / MSEC_PER_SEC)
-#define USEC(x)		(MSEC(x) / USEC_PER_MSEC)
 
 #ifdef __cplusplus
 }

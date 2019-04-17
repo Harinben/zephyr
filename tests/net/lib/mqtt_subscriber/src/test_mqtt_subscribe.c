@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_MODULE_NAME net_test
-#define NET_LOG_LEVEL LOG_LEVEL_WRN
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_test, LOG_LEVEL_WRN);
 
 #include <ztest.h>
 #include <net/socket.h>
@@ -249,7 +249,7 @@ static int test_subscribe(void)
 	topic.topic.size = strlen(topic.topic.utf8);
 	topic.qos = MQTT_QOS_1_AT_LEAST_ONCE;
 	sub.list = &topic;
-	sub.list_count = 1;
+	sub.list_count = 1U;
 	sub.message_id = sys_rand32_get();
 
 	rc = mqtt_subscribe(&client_ctx, &sub);
@@ -272,7 +272,7 @@ static int test_unsubscribe(void)
 	topic.topic.utf8 = get_mqtt_topic();
 	topic.topic.size = strlen(topic.topic.utf8);
 	unsub.list = &topic;
-	unsub.list_count = 1;
+	unsub.list_count = 1U;
 	unsub.message_id = sys_rand32_get();
 
 	rc = mqtt_unsubscribe(&client_ctx, &unsub);

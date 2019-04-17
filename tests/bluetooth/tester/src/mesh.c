@@ -124,7 +124,7 @@ static void get_faults(u8_t *faults, u8_t faults_size, u8_t *dst, u8_t *count)
 {
 	u8_t i, limit = *count;
 
-	for (i = 0, *count = 0; i < faults_size && *count < limit; i++) {
+	for (i = 0U, *count = 0U; i < faults_size && *count < limit; i++) {
 		if (faults[i]) {
 			*dst++ = faults[i];
 			(*count)++;
@@ -612,12 +612,12 @@ static void health_generate_faults(u8_t *data, u16_t len)
 
 	rp = net_buf_simple_add(&buf, sizeof(*rp));
 
-	cur_faults_count = min(sizeof(cur_faults), sizeof(some_faults));
+	cur_faults_count = MIN(sizeof(cur_faults), sizeof(some_faults));
 	memcpy(cur_faults, some_faults, cur_faults_count);
 	net_buf_simple_add_mem(&buf, cur_faults, cur_faults_count);
 	rp->cur_faults_count = cur_faults_count;
 
-	reg_faults_count = min(sizeof(reg_faults), sizeof(some_faults));
+	reg_faults_count = MIN(sizeof(reg_faults), sizeof(some_faults));
 	memcpy(reg_faults, some_faults, reg_faults_count);
 	net_buf_simple_add_mem(&buf, reg_faults, reg_faults_count);
 	rp->reg_faults_count = reg_faults_count;

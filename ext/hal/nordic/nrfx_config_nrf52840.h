@@ -53,6 +53,12 @@
 #define NRFX_CLOCK_CONFIG_LF_SRC 1
 #endif
 
+// <q> NRFX_CLOCK_CONFIG_LF_CAL_ENABLED  - Enables LF Clock Calibration Support
+
+#ifndef NRFX_CLOCK_CONFIG_LF_CAL_ENABLED
+#define NRFX_CLOCK_CONFIG_LF_CAL_ENABLED 0
+#endif
+
 // <o> NRFX_CLOCK_CONFIG_IRQ_PRIORITY  - Interrupt priority
 
 // <0=> 0 (highest)
@@ -669,14 +675,14 @@
 #endif
 // <o> NRFX_NFCT_CONFIG_IRQ_PRIORITY  - Interrupt priority
 
-// <0=> 0 (highest) 
-// <1=> 1 
-// <2=> 2 
-// <3=> 3 
-// <4=> 4 
-// <5=> 5 
-// <6=> 6 
-// <7=> 7 
+// <0=> 0 (highest)
+// <1=> 1
+// <2=> 2
+// <3=> 3
+// <4=> 4
+// <5=> 5
+// <6=> 6
+// <7=> 7
 
 #ifndef NRFX_NFCT_CONFIG_IRQ_PRIORITY
 #define NRFX_NFCT_CONFIG_IRQ_PRIORITY 7
@@ -689,11 +695,11 @@
 #endif
 // <o> NRFX_NFCT_CONFIG_LOG_LEVEL  - Default Severity level
 
-// <0=> Off 
-// <1=> Error 
-// <2=> Warning 
-// <3=> Info 
-// <4=> Debug 
+// <0=> Off
+// <1=> Error
+// <2=> Warning
+// <3=> Info
+// <4=> Debug
 
 #ifndef NRFX_NFCT_CONFIG_LOG_LEVEL
 #define NRFX_NFCT_CONFIG_LOG_LEVEL 3
@@ -701,15 +707,15 @@
 
 // <o> NRFX_NFCT_CONFIG_INFO_COLOR  - ANSI escape code prefix.
 
-// <0=> Default 
-// <1=> Black 
-// <2=> Red 
-// <3=> Green 
-// <4=> Yellow 
-// <5=> Blue 
-// <6=> Magenta 
-// <7=> Cyan 
-// <8=> White 
+// <0=> Default
+// <1=> Black
+// <2=> Red
+// <3=> Green
+// <4=> Yellow
+// <5=> Blue
+// <6=> Magenta
+// <7=> Cyan
+// <8=> White
 
 #ifndef NRFX_NFCT_CONFIG_INFO_COLOR
 #define NRFX_NFCT_CONFIG_INFO_COLOR 0
@@ -717,15 +723,15 @@
 
 // <o> NRFX_NFCT_CONFIG_DEBUG_COLOR  - ANSI escape code prefix.
 
-// <0=> Default 
-// <1=> Black 
-// <2=> Red 
-// <3=> Green 
-// <4=> Yellow 
-// <5=> Blue 
-// <6=> Magenta 
-// <7=> Cyan 
-// <8=> White 
+// <0=> Default
+// <1=> Black
+// <2=> Red
+// <3=> Green
+// <4=> Yellow
+// <5=> Blue
+// <6=> Magenta
+// <7=> Cyan
+// <8=> White
 
 #ifndef NRFX_NFCT_CONFIG_DEBUG_COLOR
 #define NRFX_NFCT_CONFIG_DEBUG_COLOR 0
@@ -1567,28 +1573,28 @@
 
 // <e> NRFX_RTC_ENABLED - nrfx_rtc - RTC peripheral driver
 //==========================================================
-#ifndef NRFX_RTC_ENABLED
-#define NRFX_RTC_ENABLED 0
+#ifdef CONFIG_NRFX_RTC
+#define NRFX_RTC_ENABLED 1
 #endif
 // <q> NRFX_RTC0_ENABLED  - Enable RTC0 instance
 
 
-#ifndef NRFX_RTC0_ENABLED
-#define NRFX_RTC0_ENABLED 0
+#ifdef CONFIG_NRFX_RTC0
+#define NRFX_RTC0_ENABLED 1
 #endif
 
 // <q> NRFX_RTC1_ENABLED  - Enable RTC1 instance
 
 
-#ifndef NRFX_RTC1_ENABLED
-#define NRFX_RTC1_ENABLED 0
+#ifdef CONFIG_NRFX_RTC1
+#define NRFX_RTC1_ENABLED 1
 #endif
 
 // <q> NRFX_RTC2_ENABLED  - Enable RTC2 instance
 
 
-#ifndef NRFX_RTC2_ENABLED
-#define NRFX_RTC2_ENABLED 0
+#ifdef CONFIG_NRFX_RTC2
+#define NRFX_RTC2_ENABLED 1
 #endif
 
 // <o> NRFX_RTC_MAXIMUM_LATENCY_US - Maximum possible time[us] in highest priority interrupt
@@ -1831,8 +1837,16 @@
 // <1=> NRF_GPIO_PIN_PULLDOWN
 // <3=> NRF_GPIO_PIN_PULLUP
 
-#ifndef NRFX_SPIM_MISO_PULL_CFG
+#ifdef CONFIG_SPI_NRFX_SPIM_MISO_NO_PULL
+#define NRFX_SPIM_MISO_PULL_CFG 0
+#endif
+
+#ifdef CONFIG_SPI_NRFX_SPIM_MISO_PULL_DOWN
 #define NRFX_SPIM_MISO_PULL_CFG 1
+#endif
+
+#ifdef CONFIG_SPI_NRFX_SPIM_MISO_PULL_UP
+#define NRFX_SPIM_MISO_PULL_CFG 3
 #endif
 
 // <o> NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY  - Interrupt priority
@@ -1902,9 +1916,9 @@
 // </e>
 
 // <q> NRFX_SPIM3_NRF52840_ANOMALY_198_WORKAROUND_ENABLED  - Enables nRF52840 anomaly 198 workaround for SPIM3.
- 
 
-// <i> See more in the Errata document located at 
+
+// <i> See more in the Errata document located at
 // <i> https://infocenter.nordicsemi.com/
 
 #ifndef NRFX_SPIM3_NRF52840_ANOMALY_198_WORKAROUND_ENABLED
@@ -2053,8 +2067,16 @@
 // <1=> NRF_GPIO_PIN_PULLDOWN
 // <3=> NRF_GPIO_PIN_PULLUP
 
-#ifndef NRFX_SPI_MISO_PULL_CFG
+#ifdef CONFIG_SPI_NRFX_SPI_MISO_NO_PULL
+#define NRFX_SPI_MISO_PULL_CFG 0
+#endif
+
+#ifdef CONFIG_SPI_NRFX_SPI_MISO_PULL_DOWN
 #define NRFX_SPI_MISO_PULL_CFG 1
+#endif
+
+#ifdef CONFIG_SPI_NRFX_SPI_MISO_PULL_UP
+#define NRFX_SPI_MISO_PULL_CFG 3
 #endif
 
 // <o> NRFX_SPI_DEFAULT_CONFIG_IRQ_PRIORITY  - Interrupt priority
@@ -2243,6 +2265,7 @@
 #ifdef CONFIG_NRFX_TIMER
 #define NRFX_TIMER_ENABLED 1
 #endif
+
 // <q> NRFX_TIMER0_ENABLED  - Enable TIMER0 instance
 
 
@@ -2728,17 +2751,17 @@
 
 // <e> NRFX_UARTE_ENABLED - nrfx_uarte - UARTE peripheral driver
 //==========================================================
-#ifndef NRFX_UARTE_ENABLED
-#define NRFX_UARTE_ENABLED 0
+#ifdef CONFIG_NRFX_UARTE
+#define NRFX_UARTE_ENABLED 1
 #endif
 // <o> NRFX_UARTE0_ENABLED - Enable UARTE0 instance
-#ifndef NRFX_UARTE0_ENABLED
-#define NRFX_UARTE0_ENABLED 0
+#ifdef CONFIG_NRFX_UARTE0
+#define NRFX_UARTE0_ENABLED 1
 #endif
 
 // <o> NRFX_UARTE1_ENABLED - Enable UARTE1 instance
-#ifndef NRFX_UARTE1_ENABLED
-#define NRFX_UARTE1_ENABLED 0
+#ifdef CONFIG_NRFX_UARTE1
+#define NRFX_UARTE1_ENABLED 1
 #endif
 
 // <o> NRFX_UARTE_DEFAULT_CONFIG_HWFC  - Hardware Flow Control
@@ -2854,12 +2877,12 @@
 
 // <e> NRFX_UART_ENABLED - nrfx_uart - UART peripheral driver
 //==========================================================
-#ifndef NRFX_UART_ENABLED
-#define NRFX_UART_ENABLED 0
+#ifdef CONFIG_NRFX_UART
+#define NRFX_UART_ENABLED 1
 #endif
 // <o> NRFX_UART0_ENABLED - Enable UART0 instance
-#ifndef NRFX_UART0_ENABLED
-#define NRFX_UART0_ENABLED 0
+#ifdef CONFIG_NRFX_UART
+#define NRFX_UART0_ENABLED 1
 #endif
 
 // <o> NRFX_UART_DEFAULT_CONFIG_HWFC  - Hardware Flow Control
@@ -2980,14 +3003,14 @@
 #endif
 // <o> NRFX_USBD_CONFIG_IRQ_PRIORITY  - Interrupt priority
 
-// <0=> 0 (highest) 
-// <1=> 1 
-// <2=> 2 
-// <3=> 3 
-// <4=> 4 
-// <5=> 5 
-// <6=> 6 
-// <7=> 7 
+// <0=> 0 (highest)
+// <1=> 1
+// <2=> 2
+// <3=> 3
+// <4=> 4
+// <5=> 5
+// <6=> 6
+// <7=> 7
 
 #ifndef NRFX_USBD_CONFIG_IRQ_PRIORITY
 #define NRFX_USBD_CONFIG_IRQ_PRIORITY 7
@@ -3006,7 +3029,7 @@
 #endif
 
 // <q> USBD_CONFIG_ISO_IN_ZLP  - Respond to an IN token on ISO IN endpoint with ZLP when no data is ready
- 
+
 
 // <i> If set, ISO IN endpoint will respond to an IN token with ZLP when no data is ready to be sent.
 // <i> Else, there will be no response.
@@ -3021,44 +3044,44 @@
 #define NRFX_USBD_CONFIG_LOG_ENABLED 0
 #endif
 // <o> NRFX_USBD_CONFIG_LOG_LEVEL  - Default Severity level
- 
-// <0=> Off 
-// <1=> Error 
-// <2=> Warning 
-// <3=> Info 
-// <4=> Debug 
+
+// <0=> Off
+// <1=> Error
+// <2=> Warning
+// <3=> Info
+// <4=> Debug
 
 #ifndef NRFX_USBD_CONFIG_LOG_LEVEL
 #define NRFX_USBD_CONFIG_LOG_LEVEL 3
 #endif
 
 // <o> NRFX_USBD_CONFIG_INFO_COLOR  - ANSI escape code prefix.
- 
-// <0=> Default 
-// <1=> Black 
-// <2=> Red 
-// <3=> Green 
-// <4=> Yellow 
-// <5=> Blue 
-// <6=> Magenta 
-// <7=> Cyan 
-// <8=> White 
+
+// <0=> Default
+// <1=> Black
+// <2=> Red
+// <3=> Green
+// <4=> Yellow
+// <5=> Blue
+// <6=> Magenta
+// <7=> Cyan
+// <8=> White
 
 #ifndef NRFX_USBD_CONFIG_INFO_COLOR
 #define NRFX_USBD_CONFIG_INFO_COLOR 0
 #endif
 
 // <o> NRFX_USBD_CONFIG_DEBUG_COLOR  - ANSI escape code prefix.
- 
-// <0=> Default 
-// <1=> Black 
-// <2=> Red 
-// <3=> Green 
-// <4=> Yellow 
-// <5=> Blue 
-// <6=> Magenta 
-// <7=> Cyan 
-// <8=> White 
+
+// <0=> Default
+// <1=> Black
+// <2=> Red
+// <3=> Green
+// <4=> Yellow
+// <5=> Blue
+// <6=> Magenta
+// <7=> Cyan
+// <8=> White
 
 #ifndef NRFX_USBD_CONFIG_DEBUG_COLOR
 #define NRFX_USBD_CONFIG_DEBUG_COLOR 0
@@ -3089,6 +3112,15 @@
 
 #ifndef NRFX_WDT_CONFIG_RELOAD_VALUE
 #define NRFX_WDT_CONFIG_RELOAD_VALUE 2000
+#endif
+
+// <o> NRFX_WDT_CONFIG_NO_IRQ  - Remove WDT IRQ handling from WDT driver
+
+// <0=> Include WDT IRQ handling
+// <1=> Remove WDT IRQ handling
+
+#ifndef NRFX_WDT_CONFIG_NO_IRQ
+#define NRFX_WDT_CONFIG_NO_IRQ 0
 #endif
 
 // <o> NRFX_WDT_CONFIG_IRQ_PRIORITY  - Interrupt priority

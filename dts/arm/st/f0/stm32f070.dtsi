@@ -8,6 +8,12 @@
 
 / {
 	soc {
+		flash-controller@40022000 {
+			flash0: flash@8000000 {
+				erase-block-size = <2048>;
+			};
+		};
+
 		spi2: spi@40003800 {
 			compatible = "st,stm32-spi-fifo";
 			#address-cells = <1>;
@@ -17,12 +23,6 @@
 			interrupts = <26 3>;
 			status = "disabled";
 			label = "SPI_2";
-		};
-
-		usb_fs_phy: usbphy {
-			compatible = "usb-nop-xceiv";
-			#phy-cells = <0>;
-			label = "USB_FS_PHY";
 		};
 
 		usb: usb@40005c00 {
@@ -36,5 +36,11 @@
 			status = "disabled";
 			label= "USB";
 		};
+	};
+
+	usb_fs_phy: usbphy {
+		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
+		label = "USB_FS_PHY";
 	};
 };

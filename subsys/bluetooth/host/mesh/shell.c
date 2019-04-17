@@ -76,7 +76,7 @@ static void get_faults(u8_t *faults, u8_t faults_size, u8_t *dst, u8_t *count)
 {
 	u8_t i, limit = *count;
 
-	for (i = 0, *count = 0; i < faults_size && *count < limit; i++) {
+	for (i = 0U, *count = 0U; i < faults_size && *count < limit; i++) {
 		if (faults[i]) {
 			*dst++ = faults[i];
 			(*count)++;
@@ -393,7 +393,7 @@ static int cmd_static_oob(const struct shell *shell, size_t argc, char *argv[])
 {
 	if (argc < 2) {
 		prov.static_val = NULL;
-		prov.static_val_len = 0;
+		prov.static_val_len = 0U;
 	} else {
 		prov.static_val_len = hex2bin(argv[1], static_val, 16);
 		if (prov.static_val_len) {
@@ -620,7 +620,7 @@ static int cmd_get_comp(const struct shell *shell, size_t argc, char *argv[])
 
 		shell_print(shell, "\tElement @ 0x%04x:", loc);
 
-		if (comp.len < ((sig * 2) + (vnd * 4))) {
+		if (comp.len < ((sig * 2U) + (vnd * 4U))) {
 			shell_print(shell, "\t\t...truncated data!");
 			break;
 		}
@@ -893,18 +893,18 @@ static int cmd_relay(const struct shell *shell, size_t argc, char *argv[])
 			if (argc > 2) {
 				count = strtoul(argv[2], NULL, 0);
 			} else {
-				count = 2;
+				count = 2U;
 			}
 
 			if (argc > 3) {
 				interval = strtoul(argv[3], NULL, 0);
 			} else {
-				interval = 20;
+				interval = 20U;
 			}
 
 			new_transmit = BT_MESH_TRANSMIT(count, interval);
 		} else {
-			new_transmit = 0;
+			new_transmit = 0U;
 		}
 
 		err = bt_mesh_cfg_relay_set(net.net_idx, net.dst, val,
@@ -1559,7 +1559,7 @@ static int cmd_provision(const struct shell *shell, size_t argc, char *argv[])
 	if (argc > 3) {
 		iv_index = strtoul(argv[3], NULL, 0);
 	} else {
-		iv_index = 0;
+		iv_index = 0U;
 	}
 
 	err = bt_mesh_provision(default_key, net_idx, 0, iv_index, addr,
@@ -1574,12 +1574,6 @@ static int cmd_provision(const struct shell *shell, size_t argc, char *argv[])
 int cmd_timeout(const struct shell *shell, size_t argc, char *argv[])
 {
 	s32_t timeout;
-	int err;
-
-	err = shell_cmd_precheck(shell, (argc >= 1), NULL, 0);
-	if (err) {
-		return err;
-	}
 
 	if (argc < 2) {
 		timeout = bt_mesh_cfg_cli_timeout_get();
@@ -1618,11 +1612,6 @@ static int cmd_fault_get(const struct shell *shell, size_t argc, char *argv[])
 	u8_t test_id;
 	u16_t cid;
 	int err;
-
-	err = shell_cmd_precheck(shell, (argc == 1), NULL, 0);
-	if (err) {
-		return err;
-	}
 
 	cid = strtoul(argv[1], NULL, 0);
 	fault_count = sizeof(faults);
@@ -1884,7 +1873,7 @@ static int cmd_add_fault(const struct shell *shell, size_t argc, char *argv[])
 		return -EINVAL;
 	}
 
-	for (i = 0; i < sizeof(cur_faults); i++) {
+	for (i = 0U; i < sizeof(cur_faults); i++) {
 		if (!cur_faults[i]) {
 			cur_faults[i] = fault_id;
 			break;
@@ -1897,7 +1886,7 @@ static int cmd_add_fault(const struct shell *shell, size_t argc, char *argv[])
 		return 0;
 	}
 
-	for (i = 0; i < sizeof(reg_faults); i++) {
+	for (i = 0U; i < sizeof(reg_faults); i++) {
 		if (!reg_faults[i]) {
 			reg_faults[i] = fault_id;
 			break;
@@ -1931,9 +1920,9 @@ static int cmd_del_fault(const struct shell *shell, size_t argc, char *argv[])
 		return -EINVAL;
 	}
 
-	for (i = 0; i < sizeof(cur_faults); i++) {
+	for (i = 0U; i < sizeof(cur_faults); i++) {
 		if (cur_faults[i] == fault_id) {
-			cur_faults[i] = 0;
+			cur_faults[i] = 0U;
 			shell_print(shell, "Fault cleared");
 		}
 	}
@@ -1943,7 +1932,7 @@ static int cmd_del_fault(const struct shell *shell, size_t argc, char *argv[])
 	return 0;
 }
 
-SHELL_CREATE_STATIC_SUBCMD_SET(mesh_cmds) {
+SHELL_STATIC_SUBCMD_SET_CREATE(mesh_cmds,
 	SHELL_CMD_ARG(init, NULL, NULL, cmd_init, 1, 0),
 	SHELL_CMD_ARG(timeout, NULL, "[timeout in seconds]", cmd_timeout, 1, 1),
 #if defined(CONFIG_BT_MESH_PB_ADV)
@@ -2037,13 +2026,13 @@ SHELL_CREATE_STATIC_SUBCMD_SET(mesh_cmds) {
 	SHELL_CMD_ARG(del-fault, NULL, "[Fault ID]", cmd_del_fault, 1, 1),
 
 	SHELL_SUBCMD_SET_END
-};
+);
 
 static int cmd_mesh(const struct shell *shell, size_t argc, char **argv)
 {
 	if (argc == 1) {
-		shell_help_print(shell, NULL, 0);
-		/* shell_cmd_precheck returns 1 when help is printed */
+		shell_help(shell);
+		/* shell returns 1 when help is printed */
 		return 1;
 	}
 

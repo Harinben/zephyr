@@ -42,12 +42,6 @@
 #include <misc/util.h>
 #include <random/rand32.h>
 
-#define ARCV2_TIMER0_INT_LVL			IRQ_TIMER0
-#define ARCV2_TIMER0_INT_PRI			0
-
-#define ARCV2_TIMER1_INT_LVL			IRQ_TIMER1
-#define ARCV2_TIMER1_INT_PRI			1
-
 #define INT_ENABLE_ARC				~(0x00000001 << 8)
 #define INT_ENABLE_ARC_BIT_POS			(8)
 
@@ -56,7 +50,7 @@
  */
 #define DT_UART_NS16550_PORT_0_IRQ_FLAGS	0 /* Default */
 #define DT_UART_NS16550_PORT_1_IRQ_FLAGS	0 /* Default */
-#define CONFIG_UART_NS16550_PORT_2_IRQ_FLAGS	0 /* Default */
+#define DT_UART_NS16550_PORT_2_IRQ_FLAGS	0 /* Default */
 
 #ifndef CONFIG_HAS_DTS
 /* I2C */

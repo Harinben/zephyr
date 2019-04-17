@@ -59,6 +59,8 @@ enum usb_dc_status_code {
 	USB_DC_SET_HALT,
 	/** Clear Feature ENDPOINT_HALT received */
 	USB_DC_CLEAR_HALT,
+	/** Start of Frame received */
+	USB_DC_SOF,
 	/** Initial USB connection status */
 	USB_DC_UNKNOWN
 };
@@ -389,6 +391,15 @@ int usb_dc_ep_read_continue(u8_t ep);
  * @return Enpoint max packet size (mps)
  */
 int usb_dc_ep_mps(u8_t ep);
+
+/**
+ * @brief Start the host wake up procedure.
+ *
+ * Function to wake up the host if it's currently in sleep mode.
+ *
+ * @return 0 on success, negative errno code on fail.
+ */
+int usb_dc_wakeup_request(void);
 
 /**
  * @}

@@ -109,7 +109,6 @@ static int flash_gecko_erase(struct device *dev, off_t offset, size_t size)
 static int flash_gecko_write_protection(struct device *dev, bool enable)
 {
 	struct flash_gecko_data *const dev_data = DEV_DATA(dev);
-	int ret = 0;
 
 	k_sem_take(&dev_data->mutex, K_FOREVER);
 
@@ -123,7 +122,7 @@ static int flash_gecko_write_protection(struct device *dev, bool enable)
 
 	k_sem_give(&dev_data->mutex);
 
-	return ret;
+	return 0;
 }
 
 /* Note:
@@ -134,7 +133,7 @@ static bool write_range_is_valid(off_t offset, u32_t size)
 {
 	return read_range_is_valid(offset, size)
 		&& (offset % sizeof(u32_t) == 0)
-		&& (size % 4 == 0);
+		&& (size % 4 == 0U);
 }
 
 static bool read_range_is_valid(off_t offset, u32_t size)
@@ -181,10 +180,7 @@ static const struct flash_driver_api flash_gecko_driver_api = {
 	.write = flash_gecko_write,
 	.erase = flash_gecko_erase,
 	.write_protection = flash_gecko_write_protection,
-	/* FLASH_WRITE_BLOCK_SIZE is extracted from device tree as flash node
-	 * property 'write-block-size'.
-	 */
-	.write_block_size = FLASH_WRITE_BLOCK_SIZE,
+	.write_block_size = DT_SOC_NV_FLASH_0_WRITE_BLOCK_SIZE,
 };
 
 static struct flash_gecko_data flash_gecko_0_data;

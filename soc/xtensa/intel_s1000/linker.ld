@@ -23,8 +23,8 @@ OUTPUT_ARCH(xtensa)
 #include <linker/linker-defs.h>
 #include <linker/linker-tool.h>
 
-#define RAMABLE_REGION data :data_phdr
-#define ROMABLE_REGION text :text_phdr
+#define RAMABLE_REGION ram :ram_phdr
+#define ROMABLE_REGION ram :ram_phdr
 
 MEMORY
 {
@@ -97,20 +97,14 @@ MEMORY
   vector_double_text :
        	org = XCHAL_DOUBLEEXC_VECTOR_PADDR_SRAM,
         len = MEM_VECT_TEXT_SIZE
-  text :
-       	org = TEXT_BASE,
-        len = TEXT_SIZE,
+  ram :
+	org = RAM_BASE,
+	len = RAM_SIZE
 #ifdef CONFIG_GEN_ISR_TABLES
   IDT_LIST :
-        org = TEXT_BASE + TEXT_SIZE,
-        len = IDT_SIZE,
+	org = IDT_BASE,
+	len = IDT_SIZE
 #endif
-  data :
-       	org = TEXT_BASE + TEXT_SIZE + IDT_SIZE,
-        len = DATA_SIZE
-  bss_data :
-        org = TEXT_BASE + TEXT_SIZE + IDT_SIZE + DATA_SIZE,
-        len = BSS_DATA_SIZE
 }
 
 PHDRS
@@ -138,9 +132,7 @@ PHDRS
   vector_user_text_phdr PT_LOAD;
   vector_double_lit_phdr PT_LOAD;
   vector_double_text_phdr PT_LOAD;
-  text_phdr PT_LOAD;
-  data_phdr PT_LOAD;
-  bss_data_phdr PT_LOAD;
+  ram_phdr PT_LOAD;
 }
 _rom_store_table = 0;
 PROVIDE(_memmap_vecbase_reset = XCHAL_VECBASE_RESET_PADDR_SRAM);
@@ -163,7 +155,27 @@ _memmap_cacheattr_bp_strict = 0x22F22FFF;
 _memmap_cacheattr_wb_allvalid = 0x44224222;
 _memmap_cacheattr_wt_allvalid = 0x11221222;
 _memmap_cacheattr_bp_allvalid = 0x22222222;
-_memmap_cacheattr_intel_s1000 = 0xf2ff4242;
+
+/*
+ * Cache attributes for memory addresses:
+ * (Each 4 bits correspond to 512MB of memory)
+ *
+ * 0x00000000 - 0x1FFFFFFF (bit  0 -  3) : Bypass cache
+ *                                         (region for hardware registers)
+ * 0x20000000 - 0x3FFFFFFF (bit  4 -  7) : No access
+ * 0x40000000 - 0x5FFFFFFF (bit  8 - 11) : No access
+ * 0x60000000 - 0x7FFFFFFF (bit 12 - 15) : No access
+ * 0x80000000 - 0x9FFFFFFF (bit 16 - 19) : Bypass cache
+ * 0xA0000000 - 0xBFFFFFFF (bit 20 - 23) : Cached, write-through
+ * 0xC0000000 - 0xDFFFFFFF (bit 24 - 27) : Bypass cache
+ * 0xE0000000 - 0xFFFFFFFF (bit 28 - 31) : Cached, write-through
+ *
+ * Note that this is both for instruction and data caches,
+ * as cacheattr_set macro sets them both to the same set of
+ * attributes.
+ */
+_memmap_cacheattr_intel_s1000 = 0x1212fff2;
+
 PROVIDE(_memmap_cacheattr_reset = _memmap_cacheattr_intel_s1000);
 SECTIONS
 {
@@ -172,6 +184,7 @@ SECTIONS
 
   .ResetVector.text : ALIGN(4)
   {
+    . = CONFIG_TEXT_SECTION_OFFSET;
     _ResetVector_text_start = ABSOLUTE(.);
     KEEP (*(.ResetVector.text))
     _ResetVector_text_end = ABSOLUTE(.);
@@ -323,14 +336,14 @@ SECTIONS
     *(.gnu.version)
     _text_end = ABSOLUTE(.);
     _etext = .;
-  } >text :text_phdr
+  } >ram :ram_phdr
 #include <linker/common-rom.ld>
 
   .noinit :  ALIGN(4)
   {
     *(.noinit)
     *(.noinit.*)
-  } >data :data_phdr
+  } >ram :ram_phdr
   .rodata : ALIGN(4)
   {
     _rodata_start = ABSOLUTE(.);
@@ -365,7 +378,7 @@ SECTIONS
     LONG(_bss_end)
     _bss_table_end = ABSOLUTE(.);
     _rodata_end = ABSOLUTE(.);
-  } >data :data_phdr
+  } >ram :ram_phdr
   .data : ALIGN(4)
   {
     _data_start = ABSOLUTE(.);
@@ -384,7 +397,7 @@ SECTIONS
     . = ALIGN(4096);
     *(.gna_model)
     _data_end = ABSOLUTE(.);
-  } >data :data_phdr
+  } >ram :ram_phdr
   .lit4 : ALIGN(4)
   {
     _lit4_start = ABSOLUTE(.);
@@ -392,7 +405,7 @@ SECTIONS
     *(.lit4.*)
     *(.gnu.linkonce.lit4.*)
     _lit4_end = ABSOLUTE(.);
-  } >data :data_phdr
+  } >ram :ram_phdr
 #include <linker/common-ram.ld>
 
   .bss (NOLOAD) : ALIGN(8)
@@ -414,7 +427,7 @@ SECTIONS
     *(COMMON)
     . = ALIGN (8);
     _bss_end = ABSOLUTE(.);
-  } >bss_data :bss_data_phdr
+  } >ram :ram_phdr
 
   /* stack */
   _end = ALIGN(8);

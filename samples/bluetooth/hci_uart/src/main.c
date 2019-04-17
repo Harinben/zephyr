@@ -103,7 +103,7 @@ static size_t h4_discard(struct device *uart, size_t len)
 {
 	u8_t buf[H4_DISCARD_LEN];
 
-	return uart_fifo_read(uart, buf, min(len, sizeof(buf)));
+	return uart_fifo_read(uart, buf, MIN(len, sizeof(buf)));
 }
 
 static struct net_buf *h4_cmd_recv(int *remaining)
@@ -281,7 +281,7 @@ static int h4_send(struct net_buf *buf)
 #if defined(CONFIG_BT_CTLR_ASSERT_HANDLER)
 void bt_ctlr_assert_handle(char *file, u32_t line)
 {
-	u32_t len = 0, pos = 0;
+	u32_t len = 0U, pos = 0U;
 
 	/* Disable interrupts, this is unrecoverable */
 	(void)irq_lock();
@@ -357,6 +357,33 @@ void main(void)
 
 	/* Enable the raw interface, this will in turn open the HCI driver */
 	bt_enable_raw(&rx_queue);
+
+	if (IS_ENABLED(CONFIG_BT_WAIT_NOP)) {
+		/* Issue a Command Complete with NOP */
+		int i;
+
+		const struct {
+			const u8_t h4;
+			const struct bt_hci_evt_hdr hdr;
+			const struct bt_hci_evt_cmd_complete cc;
+		} __packed cc_evt = {
+			.h4 = H4_EVT,
+			.hdr = {
+				.evt = BT_HCI_EVT_CMD_COMPLETE,
+				.len = sizeof(struct bt_hci_evt_cmd_complete),
+			},
+			.cc = {
+				.ncmd = 1,
+				.opcode = sys_cpu_to_le16(BT_OP_NOP),
+			},
+		};
+
+		for (i = 0; i < sizeof(cc_evt); i++) {
+			uart_poll_out(hci_uart_dev,
+				      *(((const u8_t *)&cc_evt)+i));
+		}
+	}
+
 	/* Spawn the TX thread and start feeding commands and data to the
 	 * controller
 	 */
